@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <link rel="icon" href="data:," />
+    <title>Pane Steward</title>
+    <style>
+      html,body{margin:0;height:100%;background:#0f1218;font-family:Inter,system-ui,sans-serif;overflow:hidden;color:#eef2f8}
+      #scene-container{position:fixed;inset:0}
+      #hud{position:fixed;inset:0;pointer-events:none;z-index:20;display:flex;flex-direction:column;justify-content:flex-end;padding:16px;gap:10px;box-sizing:border-box}
+      #hud *{pointer-events:auto}
+      #mode-chip{position:fixed;top:14px;left:14px;z-index:30;background:#1a2030cc;border:1px solid #5a7cff;color:#c9d4ff;border-radius:999px;padding:6px 12px;font-size:13px;backdrop-filter:blur(8px)}
+      #privacy{position:fixed;top:14px;right:14px;z-index:30;max-width:240px;text-align:right;font-size:11px;color:#9aa3b5;line-height:1.35}
+      #top-bar{position:fixed;top:48px;left:14px;z-index:30;display:flex;gap:8px;flex-wrap:wrap}
+      #top-bar button,#chat-bar button,#chips button{background:#222938ee;color:#eef2f8;border:1px solid #6b7cff;border-radius:16px;padding:10px 16px;font-size:15px;cursor:pointer;min-height:44px}
+      #top-bar button:hover,#chat-bar button:hover,#chips button:hover{background:#2d3650}
+      #chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+      #chat-bar{display:flex;gap:8px;align-items:center;max-width:720px;margin:0 auto;width:100%}
+      #chat-input{flex:1;min-height:44px;border-radius:16px;border:1px solid #445;background:#141820ee;color:#eef2f8;padding:10px 14px;font-size:15px}
+      #reason{text-align:center;font-size:14px;color:#ffd27a;min-height:1.2em}
+      #speech{text-align:center;font-size:16px;color:#eef2f8;background:#0007;border-radius:14px;padding:8px 14px;max-width:640px;margin:0 auto}
+      #session{text-align:center;font-size:12px;color:#9aa3b5}
+      #keep-row{display:flex;gap:10px;justify-content:center}
+      #keep-row #btn-keep{border-color:#5ad67a;color:#b8ffcb}
+      #keep-row #btn-undo{border-color:#ff8a5b;color:#ffc7b0}
+      button:disabled{opacity:.45;cursor:default}
+    </style>
+  </head>
+  <body>
+    <div id="scene-container"></div>
+    <div id="mode-chip">Demo mode — add API key for live chat.</div>
+    <div id="privacy">Chat goes to your chosen API host. Nothing stored on our server.</div>
+    <div id="top-bar">
+      <button id="btn-enter" type="button">Enter XR</button>
+      <button id="btn-demo" type="button">Demo tour</button>
+    </div>
+    <div id="hud">
+      <div id="session">Steward did 0 · you kept 0</div>
+      <div id="speech">Hi — I'm your Pane Steward. Pick a chip or tell me what you need.</div>
+      <div id="reason"></div>
+      <div id="chips">
+        <button type="button" data-intent="prep">Prep call</button>
+        <button type="button" data-intent="park">Park this</button>
+        <button type="button" data-intent="next">What's next</button>
+      </div>
+      <div id="keep-row">
+        <button id="btn-keep" type="button" disabled>👍 Keep</button>
+        <button id="btn-undo" type="button" disabled>👎 Undo</button>
+      </div>
+      <div id="chat-bar">
+        <input id="chat-input" type="text" placeholder="Type a short ask…" autocomplete="off" />
+        <button id="btn-send" type="button">Send</button>
+      </div>
+    </div>
+    <script type="module" src="/src/index.ts"></script>
+  </body>
+</html>
