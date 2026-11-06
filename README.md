@@ -5,7 +5,7 @@
 **Chatbot-only steward** (no character meshes / avatars / billboards). **Chat docks on the right**; **vertical pane tabs on the left** with content in the middle (≤3 tabs, easy add/remove). Chat AI (live) or **Demo Steward** (offline twin) opens / focuses / closes tabs. **Connectors tray:** Web (public URL fetch into a pane), Calendar / Mail / Notes (demo Connect stubs — **no OAuth**). Live **status line** narrates what is happening. **Keep all** / **Undo last** with focus dim on Keep.
 
 **Live:** https://muditsharma354abc-bot.github.io/pane-steward/?demo=1  
-**Live build:** commit  · bundle 
+**Live build:** commit `259243e` · bundle `index-Crs9tMh1.js`
 
 
 ## Layout
