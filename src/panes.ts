@@ -22,6 +22,12 @@ export class PaneManager {
   panes: Pane[] = [];
   private focusId = '';
   private dimTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Fired after layout/open/close/focus/setText so HUD tabs can sync. */
+  onChange: (() => void) | null = null;
+
+  private notify(): void {
+    try { this.onChange?.(); } catch { /* ignore */ }
+  }
 
   snapshot(): PaneSnap[] {
     return this.panes.map((p) => ({
@@ -30,11 +36,12 @@ export class PaneManager {
   }
 
   restore(snaps: PaneSnap[]): void {
-    for (const p of [...this.panes]) this.close(p.id);
+    for (const p of [...this.panes]) this.close(p.id, false);
     for (const s of snaps) this.open(s.id, s.title, s.body, false);
     const f = snaps.find((s) => s.focused);
-    if (f) this.focus(f.id);
+    if (f) this.focus(f.id, false);
     else this.layout();
+    this.notify();
   }
 
   open(id: string, title: string, body = '', redraw = true): Pane | null {
@@ -51,23 +58,26 @@ export class PaneManager {
     this.panes.push(pane);
     this.focusId = id;
     if (redraw) this.layout();
+    this.notify();
     return pane;
   }
 
-  close(id: string): boolean {
+  close(id: string, notify = true): boolean {
     const i = this.panes.findIndex((p) => p.id === id);
     if (i < 0) return false;
     const [p] = this.panes.splice(i, 1);
     this.root.remove(p.root);
     if (this.focusId === id) this.focusId = this.panes[0]?.id ?? '';
     this.layout();
+    if (notify) this.notify();
     return true;
   }
 
-  focus(id: string): boolean {
+  focus(id: string, notify = true): boolean {
     if (!this.panes.find((p) => p.id === id)) return false;
     this.focusId = id;
     this.layout();
+    if (notify) this.notify();
     return true;
   }
 
@@ -77,18 +87,19 @@ export class PaneManager {
     if (title != null) p.title = title;
     if (body != null) p.body = body;
     this.draw(p);
+    this.notify();
     return true;
   }
 
-  /** Redraw every open pane (e.g. after high-contrast toggle). */
+  focused(): Pane | undefined {
+    return this.panes.find((p) => p.id === this.focusId) ?? this.panes[0];
+  }
+
   redrawAll(): void {
     for (const pane of this.panes) this.draw(pane);
   }
 
-  /**
-   * On Keep: briefly dim non-focused panes so kept/focused pane reads as committed.
-   * ~0.6s then restore full opacity.
-   */
+  /** On Keep: briefly dim non-focused world panes + signal HUD stage. */
   pulseKeepFocus(ms = 650): void {
     if (this.dimTimer) clearTimeout(this.dimTimer);
     for (const p of this.panes) {

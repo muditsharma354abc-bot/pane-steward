@@ -7,15 +7,15 @@
     <title>Pane Steward</title>
     <style>
       :root {
-        --hud-fs: 15px;
-        --speech-fs: 16px;
-        --chip-fs: 13px;
+        --hud-fs: 14px;
+        --speech-fs: 15px;
+        --chip-fs: 12px;
         --mute: #9aa3b5;
         --ink: #eef2f8;
         --btn-bg: #222938ee;
         --btn-border: #6b7cff;
-        --pane-bg: #141820ee;
-        --speech-bg: #0007;
+        --pane-bg: #141820f2;
+        --speech-bg: #0008;
         --reason: #ffd27a;
         --keep-border: #5ad67a;
         --keep-ink: #b8ffcb;
@@ -23,70 +23,119 @@
         --undo-ink: #ffc7b0;
         --mode-border: #5a7cff;
         --mode-ink: #c9d4ff;
-        --mode-bg: #1a2030cc;
+        --mode-bg: #1a2030ee;
         --status-ink: #d7e0ff;
         --status-border: #4a5a8a;
+        --dock-w: min(340px, 34vw);
+        --tabs-w: 148px;
       }
       html.hc {
-        --mute: #ffffff;
-        --ink: #ffffff;
-        --btn-bg: #000000;
-        --btn-border: #ffff66;
-        --pane-bg: #000000;
-        --speech-bg: #000000;
-        --reason: #ffff66;
-        --keep-border: #00ff66;
-        --keep-ink: #00ff66;
-        --undo-border: #ff9933;
-        --undo-ink: #ff9933;
-        --mode-border: #ffff66;
-        --mode-ink: #ffffff;
-        --mode-bg: #000000;
-        --status-ink: #ffffff;
-        --status-border: #ffff66;
+        --mute: #ffffff; --ink: #ffffff; --btn-bg: #000; --btn-border: #ffff66;
+        --pane-bg: #000; --speech-bg: #000; --reason: #ffff66;
+        --keep-border: #00ff66; --keep-ink: #00ff66; --undo-border: #ff9933; --undo-ink: #ff9933;
+        --mode-border: #ffff66; --mode-ink: #fff; --mode-bg: #000;
+        --status-ink: #fff; --status-border: #ffff66;
       }
-      html.ts-0 { --hud-fs: 13px; --speech-fs: 14px; --chip-fs: 12px; }
-      html.ts-1 { --hud-fs: 15px; --speech-fs: 16px; --chip-fs: 13px; }
-      html.ts-2 { --hud-fs: 18px; --speech-fs: 19px; --chip-fs: 15px; }
+      html.ts-0 { --hud-fs: 12px; --speech-fs: 13px; --chip-fs: 11px; }
+      html.ts-1 { --hud-fs: 14px; --speech-fs: 15px; --chip-fs: 12px; }
+      html.ts-2 { --hud-fs: 16px; --speech-fs: 17px; --chip-fs: 14px; }
 
       html,body{margin:0;height:100%;background:#0f1218;font-family:Inter,system-ui,sans-serif;overflow:hidden;color:var(--ink)}
       html.hc,html.hc body{background:#000}
       #scene-container{position:fixed;inset:0}
-      #hud{position:fixed;inset:0;pointer-events:none;z-index:20;display:flex;flex-direction:column;justify-content:flex-end;padding:16px;gap:10px;box-sizing:border-box;font-size:var(--hud-fs)}
-      #hud *{pointer-events:auto}
-      #mode-chip{position:fixed;top:14px;left:14px;z-index:30;background:var(--mode-bg);border:1px solid var(--mode-border);color:var(--mode-ink);border-radius:999px;padding:6px 12px;font-size:var(--chip-fs);backdrop-filter:blur(8px);max-width:min(520px,70vw)}
-      #status-line{position:fixed;top:52px;left:14px;z-index:30;background:var(--mode-bg);border:1px solid var(--status-border);color:var(--status-ink);border-radius:12px;padding:8px 12px;font-size:var(--chip-fs);backdrop-filter:blur(8px);max-width:min(560px,78vw);line-height:1.35;min-height:1.35em}
-      #privacy{position:fixed;top:14px;right:14px;z-index:30;max-width:240px;text-align:right;font-size:11px;color:var(--mute);line-height:1.35}
-      #top-bar{position:fixed;top:100px;left:14px;z-index:30;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+      /* Top chrome */
+      #mode-chip{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:40;background:var(--mode-bg);border:1px solid var(--mode-border);color:var(--mode-ink);border-radius:999px;padding:6px 12px;font-size:var(--chip-fs);backdrop-filter:blur(8px);max-width:min(640px,70vw);text-align:center}
+      #status-line{position:fixed;top:44px;left:50%;transform:translateX(-50%);z-index:40;background:var(--mode-bg);border:1px solid var(--status-border);color:var(--status-ink);border-radius:12px;padding:7px 12px;font-size:var(--chip-fs);backdrop-filter:blur(8px);max-width:min(720px,78vw);line-height:1.35;min-height:1.35em;text-align:center}
+      #top-bar{position:fixed;top:10px;left:14px;z-index:40;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+      #privacy{position:fixed;top:10px;right:calc(var(--dock-w) + 16px);z-index:35;max-width:200px;text-align:right;font-size:10px;color:var(--mute);line-height:1.3}
       #a11y-bar{display:flex;gap:6px;align-items:center}
-      /* Primary targets ≥48 CSS px (≈48dp) */
-      #top-bar button,#chat-bar button,#chips button,#keep-row button,#a11y-bar button{
-        background:var(--btn-bg);color:var(--ink);border:1px solid var(--btn-border);border-radius:16px;
-        padding:12px 16px;font-size:var(--hud-fs);cursor:pointer;min-height:48px;min-width:48px;line-height:1.2
+
+      button{
+        background:var(--btn-bg);color:var(--ink);border:1px solid var(--btn-border);border-radius:14px;
+        padding:10px 12px;font-size:var(--hud-fs);cursor:pointer;min-height:48px;min-width:48px;line-height:1.2
       }
-      #top-bar button:hover,#chat-bar button:hover,#chips button:hover,#keep-row button:hover,#a11y-bar button:hover{filter:brightness(1.15)}
-      #a11y-bar button[aria-pressed="true"]{outline:2px solid var(--reason);outline-offset:2px}
-      #chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
-      #chat-bar{display:flex;gap:8px;align-items:center;max-width:720px;margin:0 auto;width:100%}
-      #chat-input{flex:1;min-height:48px;border-radius:16px;border:1px solid var(--btn-border);background:var(--pane-bg);color:var(--ink);padding:10px 14px;font-size:var(--hud-fs)}
-      #reason{text-align:center;font-size:calc(var(--hud-fs) - 1px);color:var(--reason);min-height:1.2em}
-      #speech{text-align:center;font-size:var(--speech-fs);color:var(--ink);background:var(--speech-bg);border-radius:14px;padding:8px 14px;max-width:640px;margin:0 auto;border:1px solid transparent}
-      html.hc #speech{border-color:var(--btn-border)}
-      #session{text-align:center;font-size:calc(var(--chip-fs));color:var(--mute)}
-      #keep-row{display:flex;gap:10px;justify-content:center}
-      #keep-row #btn-keep{border-color:var(--keep-border);color:var(--keep-ink)}
-      #keep-row #btn-undo{border-color:var(--undo-border);color:var(--undo-ink)}
+      button:hover{filter:brightness(1.12)}
       button:disabled{opacity:.45;cursor:default}
-      html.hc #top-bar button,html.hc #chat-bar button,html.hc #chips button,html.hc #keep-row button,html.hc #a11y-bar button{
-        border-width:2px;font-weight:700
+      #a11y-bar button[aria-pressed="true"]{outline:2px solid var(--reason);outline-offset:2px}
+      html.hc button{border-width:2px;font-weight:700}
+
+      /* LEFT: vertical tab strip */
+      #tab-rail{
+        position:fixed;top:86px;bottom:16px;left:12px;width:var(--tabs-w);z-index:30;
+        display:flex;flex-direction:column;gap:8px;pointer-events:auto;
+        background:var(--pane-bg);border:1px solid var(--btn-border);border-radius:16px;
+        padding:10px;box-sizing:border-box;backdrop-filter:blur(10px);
+      }
+      #tab-rail-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px}
+      #tab-rail-head span{font-size:var(--chip-fs);color:var(--mute);font-weight:600}
+      #btn-tab-add{min-width:48px;min-height:40px;padding:6px 10px;font-size:18px;line-height:1}
+      #tab-list{display:flex;flex-direction:column;gap:6px;flex:1;overflow:auto}
+      .tab-item{
+        display:flex;align-items:stretch;gap:0;border-radius:12px;overflow:hidden;
+        border:1px solid transparent;background:#1a2233aa;
+      }
+      .tab-item.active{border-color:var(--btn-border);background:#2a3550}
+      .tab-item button.tab-select{
+        flex:1;border:none;border-radius:0;min-height:48px;text-align:left;padding:10px 10px;
+        background:transparent;font-size:var(--chip-fs);font-weight:600;
+      }
+      .tab-item button.tab-close{
+        border:none;border-radius:0;min-width:40px;min-height:48px;padding:0;
+        background:transparent;color:var(--mute);font-size:16px;
+      }
+      .tab-item button.tab-close:hover{color:var(--undo-ink);background:#0004}
+      #tab-hint{font-size:10px;color:var(--mute);line-height:1.3;margin-top:auto}
+
+      /* MIDDLE: focused pane content */
+      #pane-stage{
+        position:fixed;top:86px;bottom:16px;left:calc(var(--tabs-w) + 24px);right:calc(var(--dock-w) + 24px);
+        z-index:25;pointer-events:auto;
+        background:var(--pane-bg);border:1px solid var(--btn-border);border-radius:16px;
+        padding:16px 18px;box-sizing:border-box;backdrop-filter:blur(10px);
+        display:flex;flex-direction:column;gap:10px;min-width:180px;
+      }
+      #pane-stage.dimmed{opacity:.42;transition:opacity .35s ease}
+      #pane-stage-title{font-size:calc(var(--speech-fs) + 2px);font-weight:700;margin:0}
+      #pane-stage-body{flex:1;overflow:auto;white-space:pre-wrap;color:var(--mute);font-size:var(--hud-fs);line-height:1.45;margin:0}
+      #pane-stage-empty{color:var(--mute);font-size:var(--hud-fs);margin:auto;text-align:center;line-height:1.45}
+
+      /* RIGHT: chat dock */
+      #chat-dock{
+        position:fixed;top:86px;right:12px;bottom:16px;width:var(--dock-w);z-index:30;
+        display:flex;flex-direction:column;gap:8px;pointer-events:auto;
+        background:var(--pane-bg);border:1px solid var(--btn-border);border-radius:16px;
+        padding:12px;box-sizing:border-box;backdrop-filter:blur(10px);
+      }
+      #session{font-size:var(--chip-fs);color:var(--mute);text-align:center}
+      #speech{font-size:var(--speech-fs);color:var(--ink);background:var(--speech-bg);border-radius:12px;padding:8px 10px;border:1px solid transparent;line-height:1.35}
+      html.hc #speech{border-color:var(--btn-border)}
+      #reason{font-size:calc(var(--hud-fs) - 1px);color:var(--reason);min-height:1.1em}
+      #connectors{display:flex;flex-wrap:wrap;gap:6px}
+      #connectors button{flex:1 1 40%;min-height:44px;padding:8px 8px;font-size:var(--chip-fs)}
+      #connectors button[aria-pressed="true"]{border-color:var(--keep-border);color:var(--keep-ink);outline:2px solid var(--keep-border);outline-offset:1px}
+      #connectors-note{font-size:10px;color:var(--mute);line-height:1.3}
+      #chips{display:flex;flex-wrap:wrap;gap:6px}
+      #chips button{flex:1 1 30%;min-height:44px;padding:8px;font-size:var(--chip-fs)}
+      #keep-row{display:flex;gap:8px}
+      #keep-row #btn-keep{flex:1;border-color:var(--keep-border);color:var(--keep-ink)}
+      #keep-row #btn-undo{flex:1;border-color:var(--undo-border);color:var(--undo-ink)}
+      #chat-bar{display:flex;gap:6px;margin-top:auto}
+      #chat-input{flex:1;min-height:48px;border-radius:12px;border:1px solid var(--btn-border);background:#0c1018;color:var(--ink);padding:10px 12px;font-size:var(--hud-fs)}
+      #btn-send{min-width:64px}
+
+      @media (max-width:900px){
+        :root{ --dock-w: min(300px,42vw); --tabs-w: 120px; }
+        #privacy{display:none}
       }
     </style>
   </head>
   <body>
     <div id="scene-container"></div>
+
     <div id="mode-chip">Demo Steward · offline twin — chat still drives ≤3 panes</div>
     <div id="status-line" role="status" aria-live="polite">Demo Steward · offline twin</div>
-    <div id="privacy">Chat goes to your chosen API host. Nothing stored on our server. No character meshes. Not website/browser control.</div>
+    <div id="privacy">No character meshes. Connectors = session flags / public Web. No OAuth. Not Quest Browser RPA.</div>
     <div id="top-bar">
       <button id="btn-enter" type="button">Enter XR</button>
       <button id="btn-demo" type="button">Demo tour</button>
@@ -96,24 +145,52 @@
         <button id="btn-text-up" type="button" aria-label="Larger text" title="Larger text">A+</button>
       </div>
     </div>
-    <div id="hud">
+
+    <!-- LEFT vertical tabs -->
+    <aside id="tab-rail" aria-label="Pane tabs">
+      <div id="tab-rail-head">
+        <span>Panes</span>
+        <button id="btn-tab-add" type="button" title="Add pane (max 3)" aria-label="Add pane">+</button>
+      </div>
+      <div id="tab-list"></div>
+      <div id="tab-hint">≤3 tabs · chat opens / focuses · × removes</div>
+    </aside>
+
+    <!-- MIDDLE focused content -->
+    <main id="pane-stage" aria-live="polite">
+      <p id="pane-stage-empty">No panes yet — chat or tap + to add. Chat drives tabs from the right dock.</p>
+      <h2 id="pane-stage-title" hidden></h2>
+      <pre id="pane-stage-body" hidden></pre>
+    </main>
+
+    <!-- RIGHT chat dock -->
+    <aside id="chat-dock" aria-label="Chat steward">
       <div id="session">Steward did 0 · you kept 0</div>
-      <div id="speech">Hi — I'm your Pane Steward. Chat drives ≤3 spatial panes. Pick a chip or type an ask.</div>
+      <div id="speech">Hi — chat-only Pane Steward. Ask me to open ≤3 tabs. No characters.</div>
       <div id="reason"></div>
+      <div id="connectors" role="group" aria-label="Connectors">
+        <button type="button" data-conn="web" aria-pressed="false" title="Public Web pane">Web · Connect</button>
+        <button type="button" data-conn="calendar" aria-pressed="false" title="Demo Calendar — no OAuth">Calendar · Connect</button>
+        <button type="button" data-conn="mail" aria-pressed="false" title="Demo Mail — no Gmail OAuth">Mail · Connect</button>
+        <button type="button" data-conn="notes" aria-pressed="false" title="Demo Notes">Notes · Connect</button>
+      </div>
+      <div id="connectors-note">Connect = session flag · Web = public pages · Cal/Mail/Notes = demo (no OAuth) · not Quest RPA</div>
       <div id="chips">
         <button type="button" data-intent="prep">Prep call</button>
         <button type="button" data-intent="park">Park this</button>
         <button type="button" data-intent="next">What's next</button>
+        <button type="button" data-intent="web">Lookup web</button>
       </div>
       <div id="keep-row">
         <button id="btn-keep" type="button" disabled>👍 Keep all</button>
         <button id="btn-undo" type="button" disabled>👎 Undo last</button>
       </div>
       <div id="chat-bar">
-        <input id="chat-input" type="text" placeholder="Chat to open / focus / close panes…" autocomplete="off" aria-label="Chat ask" />
+        <input id="chat-input" type="text" placeholder="Chat to open / focus / close tabs…" autocomplete="off" aria-label="Chat ask" />
         <button id="btn-send" type="button">Send</button>
       </div>
-    </div>
+    </aside>
+
     <script type="module" src="/src/index.ts"></script>
   </body>
 </html>

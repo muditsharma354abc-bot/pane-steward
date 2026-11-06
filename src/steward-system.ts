@@ -2,6 +2,10 @@ import {
   createSystem, Group, HemisphereLight, Mesh, MeshStandardMaterial, PlaneGeometry,
   PokeInteractable, Pressed, RayInteractable, type Entity,
 } from '@iwsdk/core';
+import {
+  demoConnectorBody, extractUrl, fetchPublicWeb, isConnected, loadConnectors,
+  saveConnectors, type ConnectorId, type ConnectorState,
+} from './connectors.js';
 import { demoPlan } from './demo-steward.js';
 import { Label, panel, text } from './label.js';
 import { captureKeyFromUrl, chatWithTools, hasLiveKey } from './llm.js';
@@ -14,7 +18,6 @@ function el<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
 }
 
-/** Prefer intent-derived titles over generic "Pane". */
 function titleFromIntent(raw: string | undefined, intentHint: string, fallbackId: string): string {
   const t = (raw || '').trim();
   if (t && !/^pane$/i.test(t)) return t.slice(0, 48);
@@ -23,7 +26,8 @@ function titleFromIntent(raw: string | undefined, intentHint: string, fallbackId
   if (fallbackId === 'brief') return 'Brief';
   if (fallbackId === 'now') return 'Now';
   if (fallbackId === 'done') return 'Done';
-  return fallbackId ? fallbackId.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : 'Pane';
+  if (fallbackId === 'web') return 'Web';
+  return fallbackId ? fallbackId.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : 'Tab';
 }
 
 function speakHud(text: string): void {
@@ -41,8 +45,9 @@ function speakHud(text: string): void {
 type WorldBtn = { label: Label; entity: Entity; action: () => void; kind: 'keep' | 'undo' };
 
 /**
- * Chat-first Pane Steward — no character meshes.
- * Chat AI (live) or Demo Steward (offline twin) steers ≤3 spatial panes; Keep-all / Undo-last.
+ * Chat-first Pane Steward — chatbot only, no character meshes.
+ * Layout: left vertical tabs · middle content · right chat dock.
+ * Connectors: Web (public) + Calendar/Mail/Notes demo stubs.
  */
 export class StewardSystem extends createSystem({
   pressed: { required: [RayInteractable, Pressed] },
@@ -50,10 +55,10 @@ export class StewardSystem extends createSystem({
   private panes = new PaneManager();
   private room = new Group();
   private pending: ToolBatch | null = null;
-  /** Snapshot before the last accepted Keep — Undo-last can reverse it. */
   private lastKeepBefore: PaneSnap[] | null = null;
   private stats: SessionStats = loadStats();
   private a11y: A11yPrefs = loadA11y();
+  private connectors: ConnectorState = loadConnectors();
   private busy = false;
   private mode: 'demo' | 'live' = 'demo';
   private frozen = false;
@@ -62,16 +67,17 @@ export class StewardSystem extends createSystem({
   private undoBtn!: WorldBtn;
   private lastIntent = '';
   private undidCount = 0;
+  private tabSeq = 0;
 
   init(): void {
     captureKeyFromUrl();
     this.refreshModeChip();
+    this.paintConnectors();
     const scene = this.world.scene;
     scene.add(new HemisphereLight(0xf0f4ff, 0x404858, 1.4));
     scene.add(this.room);
     this.room.add(this.panes.root);
 
-    // soft floor disc for seated feel (no desk furniture, no characters)
     const floor = new Mesh(
       new PlaneGeometry(2.4, 2.4),
       new MeshStandardMaterial({ color: '#1a1f2a', roughness: 1, transparent: true, opacity: 0.35 }),
@@ -80,13 +86,15 @@ export class StewardSystem extends createSystem({
     floor.position.y = 0.01;
     this.room.add(floor);
 
+    this.panes.onChange = () => this.syncTabUi();
     this.buildWorldBtns();
     this.bindHud();
     this.applyA11y(true);
     this.paintSession();
+    this.syncTabUi();
     this.setStatus(hasLiveKey()
-      ? 'Live chat · ready — ask to open ≤3 panes'
-      : 'Demo Steward · offline twin — chat still drives panes');
+      ? 'Live chat · ready — ask to open ≤3 tabs'
+      : 'Demo Steward · offline twin — chat still drives tabs');
     if (import.meta.env.DEV) (window as unknown as { __ps: unknown }).__ps = this;
 
     this.queries.pressed.subscribe('qualify', (e) => {
@@ -94,9 +102,7 @@ export class StewardSystem extends createSystem({
       if (b) b.action();
     });
 
-    if (IS_DEMO) {
-      setTimeout(() => void this.runDemoTour(), 900);
-    }
+    if (IS_DEMO) setTimeout(() => void this.runDemoTour(), 900);
   }
 
   update(_dt: number): void {
@@ -112,7 +118,6 @@ export class StewardSystem extends createSystem({
   private buildWorldBtns(): void {
     this.keepBtn = this.makeWorldBtn('keep', '👍 Keep all', C.keep, () => this.keep());
     this.undoBtn = this.makeWorldBtn('undo', '👎 Undo last', C.undo, () => this.undo());
-    // seated reach: under the panes
     this.keepBtn.label.mesh.position.set(-0.18, 0.92, -0.78);
     this.undoBtn.label.mesh.position.set(0.18, 0.92, -0.78);
     this.setWorldBtnActive(false);
@@ -169,7 +174,7 @@ export class StewardSystem extends createSystem({
 
   private bindHud(): void {
     el<HTMLButtonElement>('btn-enter').onclick = () => {
-      try { void this.world.launchXR(); } catch { /* offer button may already show */ }
+      try { void this.world.launchXR(); } catch { /* */ }
     };
     el<HTMLButtonElement>('btn-demo').onclick = () => void this.runDemoTour();
     el<HTMLButtonElement>('btn-keep').onclick = () => this.keep();
@@ -178,16 +183,46 @@ export class StewardSystem extends createSystem({
     el<HTMLInputElement>('chat-input').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') void this.onUserText();
     });
+    el<HTMLButtonElement>('btn-tab-add').onclick = () => this.addBlankTab();
+
     document.querySelectorAll<HTMLButtonElement>('#chips [data-intent]').forEach((b) => {
       b.onclick = () => {
         const map: Record<string, string> = {
           prep: 'Prep call',
           park: 'Park this',
           next: "What's next",
+          web: 'Lookup https://example.com',
         };
         void this.handleIntent(map[b.dataset.intent || ''] || b.textContent || '');
       };
     });
+
+    document.querySelectorAll<HTMLButtonElement>('#connectors [data-conn]').forEach((b) => {
+      b.onclick = () => {
+        const id = (b.dataset.conn || '') as ConnectorId;
+        if (!id) return;
+        this.connectors[id] = !this.connectors[id];
+        saveConnectors(this.connectors);
+        this.paintConnectors();
+        const on = this.connectors[id];
+        const label = id[0].toUpperCase() + id.slice(1);
+        this.setStatus(
+          on
+            ? (id === 'web'
+              ? 'Connected Web · public pages only (no account login)'
+              : `Connected ${label} · demo stub (no OAuth)`)
+            : `${label} disconnected`,
+        );
+        this.setSpeech(
+          on
+            ? (id === 'web'
+              ? 'Web connected — send a URL or tap Lookup web. Public fetch into a tab only.'
+              : `${label} connected (demo) — ask about ${id}. No real account tokens in this build.`)
+            : `${label} off.`,
+        );
+      };
+    });
+
     el<HTMLButtonElement>('btn-contrast').onclick = () => {
       this.a11y.highContrast = !this.a11y.highContrast;
       this.applyA11y(true);
@@ -200,6 +235,79 @@ export class StewardSystem extends createSystem({
       this.a11y.textScale = Math.min(2, this.a11y.textScale + 1) as 0 | 1 | 2;
       this.applyA11y(false);
     };
+  }
+
+  private paintConnectors(): void {
+    document.querySelectorAll<HTMLButtonElement>('#connectors [data-conn]').forEach((b) => {
+      const id = (b.dataset.conn || '') as ConnectorId;
+      const on = !!this.connectors[id];
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      const name = id[0].toUpperCase() + id.slice(1);
+      b.textContent = on
+        ? (id === 'web' ? 'Web · On' : `${name} · Demo`)
+        : `${name} · Connect`;
+    });
+  }
+
+  /** Sync left tab strip + middle stage from PaneManager. */
+  private syncTabUi(): void {
+    const list = el<HTMLDivElement>('tab-list');
+    list.innerHTML = '';
+    for (const p of this.panes.panes) {
+      const row = document.createElement('div');
+      row.className = 'tab-item' + (p.focused ? ' active' : '');
+      const sel = document.createElement('button');
+      sel.type = 'button';
+      sel.className = 'tab-select';
+      sel.textContent = p.title.slice(0, 22) || p.id;
+      sel.title = p.title;
+      sel.onclick = () => {
+        this.panes.focus(p.id);
+        this.setStatus(`Focusing ${p.title}`);
+      };
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'tab-close';
+      close.setAttribute('aria-label', `Remove ${p.title}`);
+      close.textContent = '×';
+      close.onclick = (ev) => {
+        ev.stopPropagation();
+        this.panes.close(p.id);
+        this.setStatus(`Closed ${p.title}`);
+      };
+      row.append(sel, close);
+      list.append(row);
+    }
+    el<HTMLButtonElement>('btn-tab-add').disabled = this.panes.panes.length >= 3;
+
+    const stage = el<HTMLElement>('pane-stage');
+    const empty = el<HTMLElement>('pane-stage-empty');
+    const title = el<HTMLElement>('pane-stage-title');
+    const body = el<HTMLElement>('pane-stage-body');
+    const f = this.panes.focused();
+    if (!f) {
+      empty.hidden = false;
+      title.hidden = true;
+      body.hidden = true;
+    } else {
+      empty.hidden = true;
+      title.hidden = false;
+      body.hidden = false;
+      title.textContent = f.title;
+      body.textContent = f.body || ' ';
+    }
+    stage.classList.toggle('dimmed', false);
+  }
+
+  private addBlankTab(): void {
+    if (this.panes.panes.length >= 3) {
+      this.setStatus('Max 3 tabs — close one or Keep/Undo');
+      return;
+    }
+    this.tabSeq += 1;
+    const id = `tab-${this.tabSeq}`;
+    this.panes.open(id, `Tab ${this.tabSeq}`, 'Empty tab — chat to fill, or type an ask.');
+    this.setStatus(`Added Tab ${this.tabSeq}`);
   }
 
   private applyA11y(redrawWorld: boolean): void {
@@ -217,8 +325,7 @@ export class StewardSystem extends createSystem({
       for (const b of [this.keepBtn, this.undoBtn]) {
         if (!b) continue;
         const title = b.label.mesh.userData.btn as string;
-        const kind = b.kind;
-        const accent = kind === 'keep' ? C.keep : C.undo;
+        const accent = b.kind === 'keep' ? C.keep : C.undo;
         b.label.mesh.userData.accent = accent;
         this.drawWorldBtn(b.label, title, accent, false);
       }
@@ -230,13 +337,12 @@ export class StewardSystem extends createSystem({
     this.mode = live ? 'live' : 'demo';
     const chip = el<HTMLDivElement>('mode-chip');
     chip.textContent = live
-      ? 'Live chat — panes from your API host (not website control)'
-      : 'Demo Steward · offline twin — chat still drives ≤3 panes';
+      ? 'Live chat — tabs from your API host (not website control)'
+      : 'Demo Steward · offline twin — chat still drives ≤3 tabs';
     chip.style.borderColor = live ? C.keep : C.accent;
     chip.dataset.mode = this.mode;
   }
 
-  /** Always-visible "what's happening" narration. */
   private setStatus(s: string): void {
     const node = el<HTMLDivElement>('status-line');
     if (node) node.textContent = s;
@@ -259,24 +365,18 @@ export class StewardSystem extends createSystem({
   }
 
   private setPendingUi(on: boolean): void {
-    el<HTMLButtonElement>('btn-keep').disabled = !on && !this.lastKeepBefore;
-    // Undo-last: enabled for pending batch OR after a Keep
+    el<HTMLButtonElement>('btn-keep').disabled = !on;
     const canUndo = on || !!this.lastKeepBefore;
     el<HTMLButtonElement>('btn-undo').disabled = !canUndo;
-    // World twins: show Keep when pending; Undo when pending or lastKeep
     if (this.keepBtn) this.keepBtn.label.mesh.visible = on;
     if (this.undoBtn) this.undoBtn.label.mesh.visible = canUndo;
     if (on) {
       for (const b of [this.keepBtn, this.undoBtn]) {
         if (!b) continue;
-        const title = b.label.mesh.userData.btn as string;
-        const accent = b.label.mesh.userData.accent as string;
-        this.drawWorldBtn(b.label, title, accent, false);
+        this.drawWorldBtn(b.label, b.label.mesh.userData.btn as string, b.label.mesh.userData.accent as string, false);
       }
     } else if (canUndo && this.undoBtn) {
-      const title = this.undoBtn.label.mesh.userData.btn as string;
-      const accent = this.undoBtn.label.mesh.userData.accent as string;
-      this.drawWorldBtn(this.undoBtn.label, title, accent, false);
+      this.drawWorldBtn(this.undoBtn.label, this.undoBtn.label.mesh.userData.btn as string, this.undoBtn.label.mesh.userData.accent as string, false);
     }
   }
 
@@ -293,7 +393,7 @@ export class StewardSystem extends createSystem({
     this.busy = true;
     this.lastIntent = text;
     this.refreshModeChip();
-    this.setStatus(`Chat → steering panes… (“${text.slice(0, 42)}${text.length > 42 ? '…' : ''}”)`);
+    this.setStatus(`Chat → steering tabs… (“${text.slice(0, 42)}${text.length > 42 ? '…' : ''}”)`);
     this.setSpeech('Working…');
     this.setReason('');
     try {
@@ -305,7 +405,11 @@ export class StewardSystem extends createSystem({
       if (hasLiveKey()) {
         this.setStatus('Live chat · calling tools…');
         const summary = this.panes.panes.map((p) => `${p.id}:${p.title}`).join(', ');
-        const res = await chatWithTools(text, summary);
+        const connSummary = Object.entries(this.connectors).filter(([, v]) => v).map(([k]) => k).join(',') || 'none';
+        const res = await chatWithTools(
+          `${text}\n[connectors_on=${connSummary}]`,
+          summary,
+        );
         if (res.ok && res.calls.length) {
           speech = res.speech;
           reason = res.reason;
@@ -316,15 +420,15 @@ export class StewardSystem extends createSystem({
         } else {
           this.setSpeech(`Live chat failed (${res.error || res.source}) — Demo Steward taking over.`);
           this.setStatus('Live failed → Demo Steward · offline twin');
-          await sleep(500);
+          await sleep(400);
         }
       }
 
       if (usedDemo) {
         this.mode = 'demo';
         this.refreshModeChip();
-        this.setStatus('Demo Steward · offline twin — applying pane plan');
-        const plan = demoPlan(text, this.panes.panes.map((p) => p.id));
+        this.setStatus('Demo Steward · offline twin — applying tab plan');
+        const plan = demoPlan(text, this.panes.panes.map((p) => p.id), { connectors: this.connectors });
         speech = plan.speech;
         reason = plan.reason;
         calls = plan.calls;
@@ -338,26 +442,20 @@ export class StewardSystem extends createSystem({
 
   private async applyBatch(speech: string, reason: string, calls: ToolCall[]): Promise<void> {
     const before = this.panes.snapshot();
-    const batch: ToolBatch = {
-      id: `b-${Date.now()}`,
-      speech, reason, calls, before,
-    };
-
+    const batch: ToolBatch = { id: `b-${Date.now()}`, speech, reason, calls, before };
     if (speech) this.setSpeech(speech);
     if (reason) this.setReason(reason);
-
     for (const call of calls) {
       await this.execTool(call);
-      await sleep(220);
+      await sleep(200);
     }
-
     this.pending = batch;
-    this.lastKeepBefore = null; // new pending supersedes post-keep undo target until Keep
+    this.lastKeepBefore = null;
     this.stats.did += 1;
     this.paintSession();
     this.setPendingUi(true);
     this.setStatus(
-      `Pending Keep-all · ${this.panes.panes.length} pane${this.panes.panes.length === 1 ? '' : 's'} from chat`,
+      `Pending Keep-all · ${this.panes.panes.length} tab${this.panes.panes.length === 1 ? '' : 's'} from chat`,
     );
   }
 
@@ -376,26 +474,44 @@ export class StewardSystem extends createSystem({
         this.panes.open(id, title, a.body || '');
         break;
       }
+      case 'open_web': {
+        await this.execOpenWeb(a.url || extractUrl(this.lastIntent) || 'https://example.com', a.title);
+        break;
+      }
+      case 'open_connector': {
+        const service = (a.service || '').toLowerCase() as 'calendar' | 'mail' | 'notes';
+        if (service !== 'calendar' && service !== 'mail' && service !== 'notes') break;
+        if (!isConnected(service, this.connectors)) {
+          this.setStatus(`${service} · Connect needed`);
+          this.panes.open('brief', `${service} · Connect`, `Tap ${service} · Connect in the tray (demo — no OAuth).`);
+          break;
+        }
+        const d = demoConnectorBody(service, this.lastIntent);
+        const title = a.title?.trim() || d.title;
+        const body = a.body?.trim() || d.body;
+        this.setStatus(`Opening ${title}… (demo Connect)`);
+        this.panes.open(d.id, title, body);
+        this.panes.focus(d.id);
+        break;
+      }
       case 'close_pane': {
         const id = a.id || '';
         const existing = this.panes.panes.find((p) => p.id === id);
-        this.setStatus(`Closing ${existing?.title || id || 'pane'}…`);
+        this.setStatus(`Closing ${existing?.title || id || 'tab'}…`);
         this.panes.close(id);
         break;
       }
       case 'focus_pane': {
         const id = a.id || '';
         const existing = this.panes.panes.find((p) => p.id === id);
-        this.setStatus(`Focusing ${existing?.title || id || 'pane'}`);
+        this.setStatus(`Focusing ${existing?.title || id || 'tab'}`);
         this.panes.focus(id);
         break;
       }
       case 'set_pane_text': {
         const id = a.id || '';
-        const title = a.title != null
-          ? titleFromIntent(a.title, this.lastIntent, id)
-          : undefined;
-        this.setStatus(`Updating ${title || id || 'pane'}…`);
+        const title = a.title != null ? titleFromIntent(a.title, this.lastIntent, id) : undefined;
+        this.setStatus(`Updating ${title || id || 'tab'}…`);
         this.panes.setText(id, title, a.body);
         break;
       }
@@ -408,7 +524,37 @@ export class StewardSystem extends createSystem({
     }
   }
 
-  /** Keep-all — accept current pending batch; dim non-focused panes briefly. */
+  private async execOpenWeb(url: string, titleHint?: string): Promise<void> {
+    if (!isConnected('web', this.connectors)) {
+      this.setStatus('Web · Connect needed');
+      this.panes.open('brief', 'Web · Connect', 'Tap Web · Connect first.\nPublic pages only — no account login / no Quest Browser RPA.');
+      this.panes.focus('brief');
+      return;
+    }
+    this.setStatus(`Opening ${url}…`);
+    const offline = this.mode === 'demo' || !navigator.onLine || !hasLiveKey();
+    // Demo Steward offline twin still simulates; live+online tries public fetch
+    const useDemo = offline && this.mode === 'demo';
+    if (!useDemo && navigator.onLine !== false) {
+      this.setStatus('Connected Web · summarizing…');
+    } else {
+      this.setStatus('Demo Steward · offline twin — Web demo summary…');
+    }
+    const result = await fetchPublicWeb(url, {
+      demo: useDemo || navigator.onLine === false,
+    });
+    const title = titleHint?.trim() || result.title;
+    this.setStatus(
+      result.source === 'demo'
+        ? `Demo Web pane · ${title}`
+        : result.source === 'link-only'
+          ? `Web link pane · ${title}`
+          : `Connected Web · ${title}`,
+    );
+    this.panes.open('web', title, result.body);
+    this.panes.focus('web');
+  }
+
   keep(): void {
     if (!this.pending) return;
     this.lastKeepBefore = this.pending.before;
@@ -417,16 +563,15 @@ export class StewardSystem extends createSystem({
     this.pending = null;
     this.setPendingUi(false);
     this.panes.pulseKeepFocus(700);
+    const stage = el<HTMLElement>('pane-stage');
+    stage.classList.add('dimmed');
+    // Keep focused tab readable: undim after briefly showing commitment
+    setTimeout(() => stage.classList.remove('dimmed'), 700);
     this.setSpeech('Kept all. Ready for the next ask.');
     this.setReason('');
-    this.setStatus(
-      `Kept ${this.stats.kept} · undid ${this.undidCount} — chat drives next panes`,
-    );
+    this.setStatus(`Kept ${this.stats.kept} · undid ${this.undidCount} — chat drives next tabs`);
   }
 
-  /**
-   * Undo-last — reverse pending batch, or reverse the last Keep if nothing pending.
-   */
   undo(): void {
     if (this.pending) {
       this.panes.restore(this.pending.before);
@@ -434,11 +579,9 @@ export class StewardSystem extends createSystem({
       this.undidCount += 1;
       this.paintSession();
       this.setPendingUi(false);
-      this.setSpeech('Undone — panes restored. Try another chip.');
+      this.setSpeech('Undone — tabs restored. Try another chip.');
       this.setReason('');
-      this.setStatus(
-        `Undid pending · Kept ${this.stats.kept} · undid ${this.undidCount}`,
-      );
+      this.setStatus(`Undid pending · Kept ${this.stats.kept} · undid ${this.undidCount}`);
       return;
     }
     if (this.lastKeepBefore) {
@@ -448,19 +591,15 @@ export class StewardSystem extends createSystem({
       if (this.stats.kept > 0) this.stats.kept -= 1;
       this.paintSession();
       this.setPendingUi(false);
-      this.setSpeech('Undo last Keep — panes restored.');
+      this.setSpeech('Undo last Keep — tabs restored.');
       this.setReason('');
-      this.setStatus(
-        `Undid last Keep · Kept ${this.stats.kept} · undid ${this.undidCount}`,
-      );
-      return;
+      this.setStatus(`Undid last Keep · Kept ${this.stats.kept} · undid ${this.undidCount}`);
     }
   }
 
   /**
-   * Scripted First Five for Reel (?demo=1):
-   * chat → open ≤3 panes → Keep-all → second steer → Undo-last.
-   * No character meshes. Both Keep and Undo must appear in the cut.
+   * Demo tour: chat → ≤3 tabs → Keep-all → Park → Undo-last.
+   * Also flips Web Connect briefly for a public/demo web pane beat when useful.
    */
   async runDemoTour(): Promise<void> {
     if (this.busy) return;
@@ -468,34 +607,46 @@ export class StewardSystem extends createSystem({
     this.pending = null;
     this.lastKeepBefore = null;
     this.setPendingUi(false);
-    this.setStatus('Demo tour · chat drives panes (no character meshes)');
-    this.setSpeech("Demo tour — I'll chat, open panes, then show Keep-all and Undo-last.");
-    await sleep(700);
+    this.setStatus('Demo tour · chat drives tabs (no character meshes)');
+    this.setSpeech("Demo tour — chat opens tabs on the left, Keep-all / Undo-last, then a Web demo.");
+    await sleep(600);
 
     await this.handleIntent('Prep call');
-    await sleep(1600);
-
+    await sleep(1400);
     if (this.pending) {
-      this.setSpeech('👍 Keep all — accepting these three panes.');
+      this.setSpeech('👍 Keep all — accepting these tabs.');
       this.setStatus('Tour · Keep-all');
       this.flashWorldBtn('keep');
-      await sleep(700);
+      await sleep(600);
       this.keep();
     }
-    await sleep(900);
+    await sleep(700);
+
+    // Web connector beat
+    this.connectors.web = true;
+    saveConnectors(this.connectors);
+    this.paintConnectors();
+    await this.handleIntent('Lookup https://example.com');
+    await sleep(1400);
+    if (this.pending) {
+      this.setSpeech('👍 Keep all — Web pane kept.');
+      this.flashWorldBtn('keep');
+      await sleep(500);
+      this.keep();
+    }
+    await sleep(600);
 
     await this.handleIntent('Park this');
-    await sleep(1400);
-
+    await sleep(1200);
     if (this.pending || this.lastKeepBefore) {
-      this.setSpeech('👎 Undo last — restoring the kept panes.');
+      this.setSpeech('👎 Undo last — restoring tabs.');
       this.setStatus('Tour · Undo-last');
       this.flashWorldBtn('undo');
-      await sleep(700);
+      await sleep(600);
       this.undo();
     }
-    await sleep(800);
-    this.setSpeech('Tour done — Keep-all and Undo-last shown. Chip again anytime — or add ?key= for live chat.');
+    await sleep(500);
+    this.setSpeech('Tour done — right chat dock, left tabs, Connectors, no characters.');
     this.setStatus(
       `Tour done · Kept ${this.stats.kept} · undid ${this.undidCount} · Demo Steward · offline twin`,
     );
