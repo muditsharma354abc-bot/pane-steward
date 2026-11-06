@@ -1,4 +1,4 @@
-import { Group } from '@iwsdk/core';
+import { Group, type MeshBasicMaterial } from '@iwsdk/core';
 import { Label, panel, para, text } from './label.js';
 import { C } from './style.js';
 import type { PaneSnap } from './tools.js';
@@ -21,6 +21,7 @@ export class PaneManager {
   readonly root = new Group();
   panes: Pane[] = [];
   private focusId = '';
+  private dimTimer: ReturnType<typeof setTimeout> | null = null;
 
   snapshot(): PaneSnap[] {
     return this.panes.map((p) => ({
@@ -82,6 +83,28 @@ export class PaneManager {
   /** Redraw every open pane (e.g. after high-contrast toggle). */
   redrawAll(): void {
     for (const pane of this.panes) this.draw(pane);
+  }
+
+  /**
+   * On Keep: briefly dim non-focused panes so kept/focused pane reads as committed.
+   * ~0.6s then restore full opacity.
+   */
+  pulseKeepFocus(ms = 650): void {
+    if (this.dimTimer) clearTimeout(this.dimTimer);
+    for (const p of this.panes) {
+      const mat = p.label.mesh.material as MeshBasicMaterial;
+      mat.transparent = true;
+      mat.opacity = p.focused ? 1 : 0.38;
+      mat.needsUpdate = true;
+    }
+    this.dimTimer = setTimeout(() => {
+      for (const p of this.panes) {
+        const mat = p.label.mesh.material as MeshBasicMaterial;
+        mat.opacity = 1;
+        mat.needsUpdate = true;
+      }
+      this.dimTimer = null;
+    }, ms);
   }
 
   private layout(): void {

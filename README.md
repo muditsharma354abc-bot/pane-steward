@@ -2,26 +2,26 @@
 
 **Meta VR Start Developer Competition 2026 · Productivity · New Experience**
 
-Chat AI that steers your **spatial panes** — the locked **hoodie duo** as procedural **glTF meshes** (`hoodie-male.glb` + `hoodie-female.glb`: male + female claymation-style helpers in charcoal hoodies) chat, talk (browser `speechSynthesis` + bob), open up to **≤3 spatial panes**, propose the next step, and wait for **Keep** or **Undo**. No procedural / blocky / sphere / middle steward — duo only. Not a desk/plant clone. Content is chat-filled pane text — **not** real browser tabs, OAuth, or site/platform automation. Honesty: meshes are procedural primitives exported as glTF — **not** photogrammetry and **not** Meta sample assets.
+**Chat AI steers ≤3 spatial panes** — open / focus / close from chat intent, propose the next step, wait for **Keep all** or **Undo last**. **Demo Steward** is the offline twin (same panes + Keep/Undo, no LLM). Live **status line** narrates what is happening (`Opening Brief…`, `Focusing Now`, `Kept 2 · undid 1`). **No character meshes / no glTF avatars / no billboards.** Not a desk/plant clone. Content is chat-filled pane text — **not** real browser tabs, OAuth, or site/platform automation.
 
 **Live:** https://muditsharma354abc-bot.github.io/pane-steward/?demo=1  
-**Live build:** commit `7b749d5` · bundle `index-D83uXN7P.js`
+**Live build:** (see deploy note after push)
 
 ## What it does
 
-1. Cold start with the hoodie duo + chat + intent chips (**Prep call** / **Park this** / **What's next**)
-2. Steward proposes a short plan (reason chip), then opens / focuses up to **3 spatial panes** — duo point/open/nod on pane work
-3. You **Keep** or **Undo** — HUD buttons **and** world-space twins (Undo reverses the last tool batch); duo gesture on Keep/Undo
-4. Session strip tracks steward actions vs keeps
+1. Cold start with chat + intent chips (**Prep call** / **Park this** / **What's next**) + offline/live mode chip + status line
+2. Chat proposes a short plan (reason chip), then opens / focuses up to **3 spatial panes** with titles from intent
+3. You **Keep all** or **Undo last** — HUD buttons **and** world-space twins (Undo reverses pending batch or last Keep); focus dim on Keep
+4. Session strip tracks steward actions vs keeps / undos
 
 ## Modes
 
 | Mode | When | Behavior |
 |------|------|----------|
-| **Demo Steward** | No API key, offline, live timeout, or `?demo=1` | On-device rules; same panes + Keep/Undo — reel-safe |
-| **Live chat** | User-supplied `?key=` (sessionStorage only; stripped from URL) | OpenAI-compatible `/v1/chat/completions` + tool calls (`open_pane` / `focus_pane` / `set_pane_text` / …); fail → Demo Steward |
+| **Demo Steward** | No API key, offline, live timeout, or `?demo=1` | On-device rules; chat still drives panes + Keep/Undo — reel-safe offline twin |
+| **Live chat** | User-supplied `?key=` (sessionStorage only; stripped from URL) | OpenAI-compatible `/v1/chat/completions` + tool calls; fail → Demo Steward |
 
-**Awards framing:** Agentic primary — chat AI steers ≤3 spatial panes; Demo Steward offline twin. Do **not** claim on-device-only for the live path. Do **not** claim live website / platform control.
+**Awards framing:** Agentic primary — chat AI steers ≤3 spatial panes; Demo Steward offline twin. **No character meshes.** Do **not** claim on-device-only for the live path. Do **not** claim live website / platform control.
 
 **Privacy:** Chat goes to your chosen API host. Nothing stored on our server. Keys are never committed.
 
@@ -31,8 +31,8 @@ HUD a11y (persisted in `sessionStorage` key `pane-steward.a11y.v1`):
 
 - **Contrast** — high-contrast mode for HUD, chips, speech, and canvas panes / Keep·Undo world twins
 - **A− / A+** — three text-size steps on the HUD (`ts-0` / `ts-1` / `ts-2`)
-- Primary controls (Keep, Undo, chips, Send, chat input, a11y buttons) are **≥48px** tall (`min-height` / `min-width`)
-- Every XR gesture still has a HUD **button twin** (Keep / Undo)
+- Primary controls (Keep all, Undo last, chips, Send, chat input, a11y buttons) are **≥48px** tall
+- Every XR gesture still has a HUD **button twin** (Keep all / Undo last)
 
 ## Quick start
 
@@ -42,17 +42,11 @@ npm run dev:runtime
 # open http://localhost:8082/pane-steward/?demo=1
 ```
 
-Or with the IWSDK CLI (IWER emulator + HTTPS helpers):
-
-```bash
-npm run dev
-```
-
 ### Query flags
 
 | Flag | Effect |
 |------|--------|
-| `?demo=1` | Autoplay hero loop: chat → Prep call opens ≤3 panes (Brief/Now/Done) → Keep → Park this → Undo (speech + world-space twins; no API key) |
+| `?demo=1` | Autoplay hero loop: chat → Prep call opens ≤3 panes → Keep all → Park this → Undo last |
 | `?key=` | Store API key in `sessionStorage`, strip from URL — never commit |
 | `?host=` | Optional OpenAI-compatible host |
 | `?model=` | Optional model id |
@@ -61,9 +55,9 @@ npm run dev
 ## Stack
 
 - IWSDK `@iwsdk/core` **1.1.0-rc.2** + Vite + IWER emulator
-- Locked hoodie duo: procedural glTF meshes `public/characters/hoodie-male.glb` + `hoodie-female.glb` (claymation-style male left + female right; no photo background / no billboards), talk bob + `speechSynthesis` on each reply, point/open/nod gestures on pane steer and Keep/Undo — **not** photogrammetry / Meta samples
-- Canvas spatial panes (max 3)
+- Canvas spatial panes (max 3) driven by chat tools — **no character meshes**
 - Tools: `open_pane`, `close_pane`, `focus_pane`, `set_pane_text`, `propose_plan`, `complete_step`
+- Productivity extras: pane titles from intent, Keep-all / Undo-last, focus dim on Keep, offline banner honesty, live status narration
 
 ## Build / Pages
 
@@ -76,35 +70,31 @@ Live site is GitHub Pages from the `gh-pages` branch.
 
 ## Screenshots
 
-Contest frames under `/workspace/meta-vr/screens/pane-steward/` and mirrored in `screens/`. Prefer **duo-*** / **`clean-duo.png`** for character shots (procedural glTF claymation duo — no photo background; IWER gizmos/DevUI stripped):
+Contest frames under `/workspace/meta-vr/screens/pane-steward/` and mirrored in `screens/`. Prefer **clean-*** (chat HUD + panes; no character meshes; IWER gizmos/DevUI stripped):
 
 | File | Shows |
 |------|--------|
-| **`clean-duo.png`** | **Primary duo overview** — procedural glTF hoodie male+female + Brief/Now/Done; no photo bg / no gizmos / no middle steward (Contrast + A± visible in HUD) |
-| **`duo-cold-start.png`** | **Cold start** — procedural glTF hoodie duo + intent chips (no photo bg) |
-| **`duo-panes.png`** | **Panes** — Brief / Now / Done with procedural glTF hoodie duo |
-| **`duo-keep-undo.png`** | **Keep / Undo** — pending actions with procedural glTF hoodie duo |
-| `clean-panes.png` | Brief / Now / Done flow (pre-duo character — UX only) |
-| `clean-keep.png` | Keep pending (HUD + world twin; pre-duo character — UX only) |
-| `clean-undo.png` | Undo pending after Park (pre-duo character — UX only) |
-| `clean-demo-badge.png` | Demo Steward mode chip (pre-duo character — UX only) |
-| `clean-cold-start.png` | Older cold start + chips (**superseded for character** by duo set) |
+| **`clean-cold-start.png`** | Cold start — chat + chips + Demo Steward offline banner + status line |
+| **`clean-panes.png`** | Brief / Now / Done from chat (Prep call) |
+| **`clean-keep.png`** | Keep all pending (HUD + world twin) |
+| **`clean-undo.png`** | Undo last pending after Park |
+| `clean-demo-badge.png` | Demo Steward mode chip |
 
-Live tour: [Pages `?demo=1`](https://muditsharma354abc-bot.github.io/pane-steward/?demo=1). Re-capture clean XR: `node scripts/capture-clean.mjs` · duo: `node scripts/capture-duo.mjs`.
+Older `duo-*` / `clean-duo.png` frames showed a removed hoodie duo — **do not use** for judging; product is chat-first with **no character meshes**.
 
-**Note:** For **character shots**, prefer **`clean-duo.png`** + **`duo-cold-start.png` / `duo-panes.png` / `duo-keep-undo.png`** — they show the live **procedural glTF claymation duo** (no photo background / no billboard era). Older `clean-*` frames remain useful for Keep/Undo/panes UX flow but show the **pre-duo character** (captured before `f6aa0e3`) — do not treat them as the live duo look.
+Live tour: [Pages `?demo=1`](https://muditsharma354abc-bot.github.io/pane-steward/?demo=1). Re-capture: `node scripts/capture-clean.mjs`.
 
 ## Current gaps (honest)
 
-Demo tour Keep→Undo + world-space Keep/Undo twins are **shipped**. Procedural glTF hoodie duo (`hoodie-male.glb` + `hoodie-female.glb`, no photo bg / no billboards) is **shipped** (`7b749d5`). A11y Contrast + A−/A+ + ≥48px targets are **shipped** (`a44b471`). Clean duo XR screens are **in repo** (`clean-duo.png` + `duo-*.png`). Still thin vs full contest polish:
+Chat-first panes + Keep-all / Undo-last + status line + a11y are **shipped**. Character meshes were **removed** by product lock. Still thin vs full contest polish:
 
-- Lip-sync and mic not shipped yet
+- Lip-sync and mic not shipped
 - Headset not yet tested on-device
 - Clean XR screens (`clean-*.png`) hide IWER DevUI via `controlMode=programmatic`
 
 ## Out of scope (v1)
 
-Calendar sync, real email, multiplayer, desk/plant/furniture clones, eye-tracking, Meta sample forks, real platform connectors, Quest Browser automation, iframes of Gmail/Calendar.
+Character meshes / glTF avatars / billboards, calendar sync, real email, multiplayer, desk/plant/furniture clones, eye-tracking, Meta sample forks, real platform connectors, Quest Browser automation, iframes of Gmail/Calendar.
 
 ## License
 

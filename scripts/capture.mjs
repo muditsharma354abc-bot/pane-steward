@@ -51,7 +51,7 @@ await page.goto(U, { waitUntil: 'networkidle', timeout: 90000 });
 await page.waitForSelector('#chips', { timeout: 30000 });
 await page.waitForTimeout(2200);
 
-// 1) chips + 5) demo badge — cold HUD (character + chips + mode chip)
+// 1) chips + 5) demo badge — cold HUD (chat + chips + mode chip)
 await shot('chips.png');
 await shot('demo-badge.png');
 

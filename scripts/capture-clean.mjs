@@ -120,7 +120,7 @@ const cleanChrome = async () => {
     }
 
     // 6) Product HUD above IWER (z-index 999)
-    for (const id of ['mode-chip', 'privacy', 'top-bar', 'hud']) {
+    for (const id of ['mode-chip', 'status-line', 'privacy', 'top-bar', 'hud']) {
       const el = document.getElementById(id);
       if (!el) continue;
       el.style.zIndex = '10000';
@@ -183,6 +183,7 @@ const sizes = Object.fromEntries(
 );
 const hud = await page.evaluate(() => ({
   mode: document.getElementById('mode-chip')?.textContent,
+  status: document.getElementById('status-line')?.textContent,
   speech: document.getElementById('speech')?.textContent,
   reason: document.getElementById('reason')?.textContent,
   controlMode: window.IWER_DEVICE?.controlMode,

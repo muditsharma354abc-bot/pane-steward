@@ -24,6 +24,8 @@
         --mode-border: #5a7cff;
         --mode-ink: #c9d4ff;
         --mode-bg: #1a2030cc;
+        --status-ink: #d7e0ff;
+        --status-border: #4a5a8a;
       }
       html.hc {
         --mute: #ffffff;
@@ -40,6 +42,8 @@
         --mode-border: #ffff66;
         --mode-ink: #ffffff;
         --mode-bg: #000000;
+        --status-ink: #ffffff;
+        --status-border: #ffff66;
       }
       html.ts-0 { --hud-fs: 13px; --speech-fs: 14px; --chip-fs: 12px; }
       html.ts-1 { --hud-fs: 15px; --speech-fs: 16px; --chip-fs: 13px; }
@@ -50,9 +54,10 @@
       #scene-container{position:fixed;inset:0}
       #hud{position:fixed;inset:0;pointer-events:none;z-index:20;display:flex;flex-direction:column;justify-content:flex-end;padding:16px;gap:10px;box-sizing:border-box;font-size:var(--hud-fs)}
       #hud *{pointer-events:auto}
-      #mode-chip{position:fixed;top:14px;left:14px;z-index:30;background:var(--mode-bg);border:1px solid var(--mode-border);color:var(--mode-ink);border-radius:999px;padding:6px 12px;font-size:var(--chip-fs);backdrop-filter:blur(8px)}
+      #mode-chip{position:fixed;top:14px;left:14px;z-index:30;background:var(--mode-bg);border:1px solid var(--mode-border);color:var(--mode-ink);border-radius:999px;padding:6px 12px;font-size:var(--chip-fs);backdrop-filter:blur(8px);max-width:min(520px,70vw)}
+      #status-line{position:fixed;top:52px;left:14px;z-index:30;background:var(--mode-bg);border:1px solid var(--status-border);color:var(--status-ink);border-radius:12px;padding:8px 12px;font-size:var(--chip-fs);backdrop-filter:blur(8px);max-width:min(560px,78vw);line-height:1.35;min-height:1.35em}
       #privacy{position:fixed;top:14px;right:14px;z-index:30;max-width:240px;text-align:right;font-size:11px;color:var(--mute);line-height:1.35}
-      #top-bar{position:fixed;top:48px;left:14px;z-index:30;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+      #top-bar{position:fixed;top:100px;left:14px;z-index:30;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
       #a11y-bar{display:flex;gap:6px;align-items:center}
       /* Primary targets ≥48 CSS px (≈48dp) */
       #top-bar button,#chat-bar button,#chips button,#keep-row button,#a11y-bar button{
@@ -79,8 +84,9 @@
   </head>
   <body>
     <div id="scene-container"></div>
-    <div id="mode-chip">Demo mode — add API key for live chat.</div>
-    <div id="privacy">Chat goes to your chosen API host. Nothing stored on our server.</div>
+    <div id="mode-chip">Demo Steward · offline twin — chat still drives ≤3 panes</div>
+    <div id="status-line" role="status" aria-live="polite">Demo Steward · offline twin</div>
+    <div id="privacy">Chat goes to your chosen API host. Nothing stored on our server. No character meshes. Not website/browser control.</div>
     <div id="top-bar">
       <button id="btn-enter" type="button">Enter XR</button>
       <button id="btn-demo" type="button">Demo tour</button>
@@ -92,7 +98,7 @@
     </div>
     <div id="hud">
       <div id="session">Steward did 0 · you kept 0</div>
-      <div id="speech">Hi — I'm your Pane Steward. Pick a chip or tell me what you need.</div>
+      <div id="speech">Hi — I'm your Pane Steward. Chat drives ≤3 spatial panes. Pick a chip or type an ask.</div>
       <div id="reason"></div>
       <div id="chips">
         <button type="button" data-intent="prep">Prep call</button>
@@ -100,11 +106,11 @@
         <button type="button" data-intent="next">What's next</button>
       </div>
       <div id="keep-row">
-        <button id="btn-keep" type="button" disabled>👍 Keep</button>
-        <button id="btn-undo" type="button" disabled>👎 Undo</button>
+        <button id="btn-keep" type="button" disabled>👍 Keep all</button>
+        <button id="btn-undo" type="button" disabled>👎 Undo last</button>
       </div>
       <div id="chat-bar">
-        <input id="chat-input" type="text" placeholder="Type a short ask…" autocomplete="off" aria-label="Chat ask" />
+        <input id="chat-input" type="text" placeholder="Chat to open / focus / close panes…" autocomplete="off" aria-label="Chat ask" />
         <button id="btn-send" type="button">Send</button>
       </div>
     </div>
