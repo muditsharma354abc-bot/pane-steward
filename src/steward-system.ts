@@ -1,18 +1,25 @@
 import {
   createSystem, Group, HemisphereLight, Mesh, MeshStandardMaterial, PlaneGeometry,
+  PokeInteractable, Pressed, RayInteractable, type Entity,
 } from '@iwsdk/core';
 import { StewardCharacter } from './character.js';
 import { demoPlan } from './demo-steward.js';
+import { Label, panel, text } from './label.js';
 import { captureKeyFromUrl, chatWithTools, hasLiveKey } from './llm.js';
 import { PaneManager } from './panes.js';
 import { IS_DEMO, loadStats, saveStats, type SessionStats } from './state.js';
+import { C } from './style.js';
 import type { ToolBatch, ToolCall } from './tools.js';
 
 function el<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
 }
 
-export class StewardSystem extends createSystem({}) {
+type WorldBtn = { label: Label; entity: Entity; action: () => void; kind: 'keep' | 'undo' };
+
+export class StewardSystem extends createSystem({
+  pressed: { required: [RayInteractable, Pressed] },
+}) {
   private character = new StewardCharacter();
   private panes = new PaneManager();
   private room = new Group();
@@ -21,7 +28,9 @@ export class StewardSystem extends createSystem({}) {
   private busy = false;
   private mode: 'demo' | 'live' = 'demo';
   private frozen = false;
-  private worldBtns: { mesh: Mesh; action: () => void }[] = [];
+  private buttons = new Map<number, WorldBtn>();
+  private keepBtn!: WorldBtn;
+  private undoBtn!: WorldBtn;
 
   init(): void {
     captureKeyFromUrl();
@@ -41,9 +50,15 @@ export class StewardSystem extends createSystem({}) {
     floor.position.y = 0.01;
     this.room.add(floor);
 
+    this.buildWorldBtns();
     this.bindHud();
     this.paintSession();
     if (import.meta.env.DEV) (window as unknown as { __ps: unknown }).__ps = this;
+
+    this.queries.pressed.subscribe('qualify', (e) => {
+      const b = this.buttons.get(e.index);
+      if (b) b.action();
+    });
 
     if (IS_DEMO) {
       // autoplay kicks after world settles
@@ -61,6 +76,64 @@ export class StewardSystem extends createSystem({}) {
         if (document.visibilityState === 'visible') this.frozen = false;
       }, { once: true });
     }
+  }
+
+  private buildWorldBtns(): void {
+    this.keepBtn = this.makeWorldBtn('keep', '👍 Keep', C.keep, () => this.keep());
+    this.undoBtn = this.makeWorldBtn('undo', '👎 Undo', C.undo, () => this.undo());
+    // seated reach: under the panes, above the character base
+    this.keepBtn.label.mesh.position.set(-0.16, 0.92, -0.78);
+    this.undoBtn.label.mesh.position.set(0.16, 0.92, -0.78);
+    this.setWorldBtnActive(false);
+  }
+
+  private makeWorldBtn(
+    kind: 'keep' | 'undo',
+    title: string,
+    accent: string,
+    action: () => void,
+  ): WorldBtn {
+    const label = new Label(0.24, 0.08);
+    this.drawWorldBtn(label, title, accent, false);
+    const entity = this.world.createTransformEntity(label.mesh);
+    entity.addComponent(RayInteractable);
+    entity.addComponent(PokeInteractable);
+    const b: WorldBtn = { label, entity, action, kind };
+    this.buttons.set(entity.index, b);
+    label.mesh.userData.btn = title;
+    label.mesh.userData.accent = accent;
+    return b;
+  }
+
+  private drawWorldBtn(label: Label, title: string, accent: string, hot: boolean): void {
+    label.draw((g, W, H) => {
+      panel(g, W, H, hot ? '#2a3348' : C.pane, accent);
+      text(g, title, W / 2, H / 2, Math.round(H * 0.42), C.ink, 700, W - 40, 'center');
+    });
+  }
+
+  private setWorldBtnActive(on: boolean): void {
+    for (const b of [this.keepBtn, this.undoBtn]) {
+      if (!b) continue;
+      b.label.mesh.visible = on;
+      const title = b.label.mesh.userData.btn as string;
+      const accent = b.label.mesh.userData.accent as string;
+      this.drawWorldBtn(b.label, title, accent, false);
+    }
+  }
+
+  private flashWorldBtn(kind: 'keep' | 'undo'): void {
+    const b = kind === 'keep' ? this.keepBtn : this.undoBtn;
+    if (!b) return;
+    b.label.mesh.visible = true;
+    const title = b.label.mesh.userData.btn as string;
+    const accent = b.label.mesh.userData.accent as string;
+    this.drawWorldBtn(b.label, title, accent, true);
+    b.label.mesh.scale.setScalar(1.12);
+    setTimeout(() => {
+      b.label.mesh.scale.setScalar(1);
+      this.drawWorldBtn(b.label, title, accent, false);
+    }, 500);
   }
 
   private bindHud(): void {
@@ -113,6 +186,7 @@ export class StewardSystem extends createSystem({}) {
   private setPendingUi(on: boolean): void {
     el<HTMLButtonElement>('btn-keep').disabled = !on;
     el<HTMLButtonElement>('btn-undo').disabled = !on;
+    this.setWorldBtnActive(on);
   }
 
   private async onUserText(): Promise<void> {
@@ -240,25 +314,50 @@ export class StewardSystem extends createSystem({}) {
     this.character.play('open');
   }
 
-  /** Scripted First Five for Reel: intent → panes → Keep in <90s. */
+  /**
+   * Scripted First Five for Reel (&demo=1):
+   * character/chat → steer up to 3 panes → Keep → second steer → Undo.
+   * Both Keep and Undo must appear in the cut; world-space twins flash with HUD.
+   */
   async runDemoTour(): Promise<void> {
     if (this.busy) return;
     // reset panes for a clean hero loop
     for (const p of [...this.panes.panes]) this.panes.close(p.id);
     this.pending = null;
     this.setPendingUi(false);
-    this.setSpeech('Demo tour — Prep call in under 90 seconds.');
-    await sleep(600);
-    await this.handleIntent('Prep call');
-    await sleep(1400);
-    if (this.pending) this.keep();
+    this.setSpeech("Demo tour — I'll chat, open panes, then show Keep and Undo.");
+    this.character.play('nod');
     await sleep(700);
-    this.setSpeech('Tour done. Chip again anytime — or add ?key= for live chat.');
+
+    // 1) Chat + steer up to 3 panes (Brief / Now / Done)
+    await this.handleIntent('Prep call');
+    await sleep(1600);
+
+    // 2) Visible Keep (HUD + world twin flash)
+    if (this.pending) {
+      this.setSpeech('👍 Keep — accepting these three panes.');
+      this.flashWorldBtn('keep');
+      await sleep(700);
+      this.keep();
+    }
+    await sleep(900);
+
+    // 3) Second steer so Undo has a pending batch to reverse
+    await this.handleIntent('Park this');
+    await sleep(1400);
+
+    // 4) Visible Undo (HUD + world twin flash)
+    if (this.pending) {
+      this.setSpeech('👎 Undo — restoring the kept panes.');
+      this.flashWorldBtn('undo');
+      await sleep(700);
+      this.undo();
+    }
+    await sleep(800);
+    this.setSpeech('Tour done — Keep and Undo both shown. Chip again anytime — or add ?key= for live chat.');
   }
 }
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
-
-// silence unused VisibilityState import warning by referencing

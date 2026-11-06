@@ -42,7 +42,7 @@ npm run dev
 
 | Flag | Effect |
 |------|--------|
-| `?demo=1` | Autoplay First Five hero loop (intent → panes → Keep) |
+| `?demo=1` | Autoplay First Five hero loop (chat → ≤3 panes → Keep → Undo) |
 | `?key=` | Store API key in `sessionStorage`, strip from URL — never commit |
 | `?host=` | Optional OpenAI-compatible host |
 | `?model=` | Optional model id |

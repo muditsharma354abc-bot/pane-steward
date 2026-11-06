@@ -11,14 +11,15 @@ export function demoPlan(intent: string, openIds: string[]): DemoPlan {
   const t = intent.toLowerCase().trim();
   if (/prep|call|meet/.test(t)) {
     return {
-      speech: "I'll open Brief and Now for your call — skim Brief, then Keep.",
-      reason: 'Prep call → Brief + agenda',
+      speech: "I'll open Brief, Now, and Done for your call — skim Brief, then Keep.",
+      reason: 'Prep call → 3 panes',
       calls: [
-        { name: 'propose_plan', args: { speech: "I'll open Brief and Now for your call — skim Brief, then Keep.", reason: 'Prep call → Brief + agenda' } },
+        { name: 'propose_plan', args: { speech: "I'll open Brief, Now, and Done for your call — skim Brief, then Keep.", reason: 'Prep call → 3 panes' } },
         { name: 'open_pane', args: { id: 'brief', title: 'Brief', body: 'Goal: align on Q4 scope.\nAttendees: you + 2.\nBring: one blocker.' } },
         { name: 'open_pane', args: { id: 'now', title: 'Now', body: '1. Open notes\n2. State goal in 20s\n3. Ask for decisions' } },
+        { name: 'open_pane', args: { id: 'done', title: 'Done', body: 'Capture decisions here.\nPark leftovers after the call.' } },
         { name: 'focus_pane', args: { id: 'brief' } },
-        { name: 'complete_step', args: { summary: 'Call prep panes ready' } },
+        { name: 'complete_step', args: { summary: 'Call prep — 3 panes ready' } },
       ],
     };
   }
