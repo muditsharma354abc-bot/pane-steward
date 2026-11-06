@@ -1,24 +1,26 @@
 # Pane Steward
 
-**Meta VR Start 2026 · Productivity · New Experience**
+**Meta VR Start Developer Competition 2026 · Productivity · New Experience**
 
-A seated steward you chat with — it opens your spatial tabs, does the next step, and waits for **Keep** or **Undo**.
+Chat AI that steers your spatial panes — a seated steward character opens up to **3** tabs, proposes the next step, and waits for **Keep** or **Undo**. Not a desk/plant clone.
+
+**Live:** https://muditsharma354abc-bot.github.io/pane-steward/?demo=1
 
 ## What it does
 
 1. Cold start with a character + chat + intent chips (**Prep call** / **Park this** / **What's next**)
 2. Steward proposes a short plan (reason chip), then opens / focuses up to **3 spatial panes**
-3. You **👍 Keep** or **👎 Undo** (Undo reverses the last tool batch)
-4. Session strip: “Steward did N · you kept M”
+3. You **Keep** or **Undo** (Undo reverses the last tool batch)
+4. Session strip tracks steward actions vs keeps
 
 ## Modes
 
 | Mode | When | Behavior |
 |------|------|----------|
-| **Demo Steward** | No API key, offline, or live timeout &gt;8s | On-device rules; same panes + Keep/Undo |
-| **Live chat** | `?key=` present (stored in `sessionStorage` only) | OpenAI-compatible `/v1/chat/completions` + tool calls |
+| **Demo Steward** | No API key, offline, live timeout, or `?demo=1` | On-device rules; same panes + Keep/Undo — reel-safe |
+| **Live chat** | User-supplied `?key=` (sessionStorage only; stripped from URL) | OpenAI-compatible `/v1/chat/completions` + tool calls; fail → Demo Steward |
 
-HUD always shows: **Demo mode — add API key for live chat.** (or live chip when keyed)
+**Awards framing:** Agentic primary — chat AI that drives your panes, with Demo Steward offline twin. Do **not** claim on-device-only for the live path.
 
 **Privacy:** Chat goes to your chosen API host. Nothing stored on our server. Keys are never committed.
 
@@ -41,16 +43,10 @@ npm run dev
 | Flag | Effect |
 |------|--------|
 | `?demo=1` | Autoplay First Five hero loop (intent → panes → Keep) |
-| `?key=sk-…` | Store API key in `sessionStorage`, strip from URL |
-| `?host=https://api.openai.com/v1` | Optional OpenAI-compatible host |
-| `?model=gpt-4o-mini` | Optional model id |
+| `?key=` | Store API key in `sessionStorage`, strip from URL — never commit |
+| `?host=` | Optional OpenAI-compatible host |
+| `?model=` | Optional model id |
 | `?controllers=1` | Prefer controllers in IWER (hands are default) |
-
-Example live:
-
-```
-http://localhost:8082/pane-steward/?key=YOUR_KEY
-```
 
 ## Stack
 
@@ -63,10 +59,18 @@ http://localhost:8082/pane-steward/?key=YOUR_KEY
 
 ```bash
 npm run build
-# dist/ → GitHub Pages (set VITE_BASE=/pane-steward/ or ./ )
+# push dist/ to gh-pages (VITE_BASE=/pane-steward/)
 ```
 
-Do not commit secrets. Prefer `?key=` at runtime.
+Live site is GitHub Pages from the `gh-pages` branch.
+
+## Current gaps (honest)
+
+First playable scaffold — thin vs full contest polish:
+
+- World-space Keep/Undo rays (HUD twins only for now)
+- Lip-sync, mic, a11y toggles not shipped yet
+- Screenshots / capture assets not in repo yet
 
 ## Out of scope (v1)
 
