@@ -79,6 +79,11 @@ export class PaneManager {
     return true;
   }
 
+  /** Redraw every open pane (e.g. after high-contrast toggle). */
+  redrawAll(): void {
+    for (const pane of this.panes) this.draw(pane);
+  }
+
   private layout(): void {
     this.panes.forEach((p, i) => {
       p.focused = p.id === this.focusId;

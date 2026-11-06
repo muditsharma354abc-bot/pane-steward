@@ -25,6 +25,16 @@ Chat AI that steers your spatial panes — the locked **hoodie duo** (male + fem
 
 **Privacy:** Chat goes to your chosen API host. Nothing stored on our server. Keys are never committed.
 
+## Accessibility
+
+HUD a11y (persisted in `sessionStorage`):
+
+- **Contrast** — high-contrast mode for HUD, chips, speech, and canvas panes / Keep·Undo world twins
+- **A− / A+** — three text-size steps on the HUD
+- Primary controls (Keep, Undo, chips, Send, chat input) are **≥48px** tall
+- Every XR gesture still has a HUD **button twin** (Keep / Undo)
+
+
 ## Quick start
 
 ```bash
@@ -85,7 +95,7 @@ Live tour: [Pages `?demo=1`](https://muditsharma354abc-bot.github.io/pane-stewar
 
 Demo tour Keep→Undo + world-space Keep/Undo twins are **shipped** (d346796). Hoodie duo (no procedural steward) is **shipped** (`f6aa0e3`). Still thin vs full contest polish:
 
-- Lip-sync, mic, a11y toggles not shipped yet
+- Lip-sync and mic not shipped yet (a11y contrast + text size shipped)
 - Headset not yet tested on-device
 - Clean duo screen capture not in repo yet (`clean-*` still show the pre-duo character)
 - Clean XR screens (`clean-*.png`) hide IWER DevUI via `controlMode=programmatic`

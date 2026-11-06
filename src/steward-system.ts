@@ -7,8 +7,8 @@ import { demoPlan } from './demo-steward.js';
 import { Label, panel, text } from './label.js';
 import { captureKeyFromUrl, chatWithTools, hasLiveKey } from './llm.js';
 import { PaneManager } from './panes.js';
-import { IS_DEMO, loadStats, saveStats, type SessionStats } from './state.js';
-import { C } from './style.js';
+import { IS_DEMO, loadA11y, loadStats, saveA11y, saveStats, type A11yPrefs, type SessionStats } from './state.js';
+import { applyContrast, C } from './style.js';
 import type { ToolBatch, ToolCall } from './tools.js';
 
 function el<T extends HTMLElement>(id: string): T {
@@ -25,6 +25,7 @@ export class StewardSystem extends createSystem({
   private room = new Group();
   private pending: ToolBatch | null = null;
   private stats: SessionStats = loadStats();
+  private a11y: A11yPrefs = loadA11y();
   private busy = false;
   private mode: 'demo' | 'live' = 'demo';
   private frozen = false;
@@ -52,6 +53,7 @@ export class StewardSystem extends createSystem({
 
     this.buildWorldBtns();
     this.bindHud();
+    this.applyA11y(true); // restore HC palette onto world twins too
     this.paintSession();
     if (import.meta.env.DEV) (window as unknown as { __ps: unknown }).__ps = this;
 
@@ -157,6 +159,42 @@ export class StewardSystem extends createSystem({
         void this.handleIntent(map[b.dataset.intent || ''] || b.textContent || '');
       };
     });
+    el<HTMLButtonElement>('btn-contrast').onclick = () => {
+      this.a11y.highContrast = !this.a11y.highContrast;
+      this.applyA11y(true);
+    };
+    el<HTMLButtonElement>('btn-text-down').onclick = () => {
+      this.a11y.textScale = Math.max(0, this.a11y.textScale - 1) as 0 | 1 | 2;
+      this.applyA11y(false);
+    };
+    el<HTMLButtonElement>('btn-text-up').onclick = () => {
+      this.a11y.textScale = Math.min(2, this.a11y.textScale + 1) as 0 | 1 | 2;
+      this.applyA11y(false);
+    };
+  }
+
+  /** HUD contrast + text size (sessionStorage). Contrast also recolors canvas panes/world twins. */
+  private applyA11y(redrawWorld: boolean): void {
+    saveA11y(this.a11y);
+    const root = document.documentElement;
+    root.classList.toggle('hc', this.a11y.highContrast);
+    root.classList.remove('ts-0', 'ts-1', 'ts-2');
+    root.classList.add(`ts-${this.a11y.textScale}`);
+    const contrastBtn = el<HTMLButtonElement>('btn-contrast');
+    contrastBtn.setAttribute('aria-pressed', this.a11y.highContrast ? 'true' : 'false');
+    contrastBtn.textContent = this.a11y.highContrast ? 'Contrast ✓' : 'Contrast';
+    applyContrast(this.a11y.highContrast);
+    if (redrawWorld) {
+      this.panes.redrawAll();
+      for (const b of [this.keepBtn, this.undoBtn]) {
+        if (!b) continue;
+        const title = b.label.mesh.userData.btn as string;
+        const kind = b.kind;
+        const accent = kind === 'keep' ? C.keep : C.undo;
+        b.label.mesh.userData.accent = accent;
+        this.drawWorldBtn(b.label, title, accent, false);
+      }
+    }
   }
 
   private refreshModeChip(): void {
@@ -166,7 +204,7 @@ export class StewardSystem extends createSystem({
     chip.textContent = live
       ? 'Live chat — panes driven by your API host'
       : 'Demo mode — add API key for live chat.';
-    chip.style.borderColor = live ? '#5ad67a' : '#5a7cff';
+    chip.style.borderColor = live ? C.keep : C.accent;
   }
 
   private paintSession(): void {
