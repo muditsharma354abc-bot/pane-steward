@@ -46,7 +46,7 @@
       "iwer": true,
       "activation": "always",
       "injectOnBuild": true,
-      "environment": "living_room"
+      "environment": "sunlit_living_room"
     }
   }
 }
