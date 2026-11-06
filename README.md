@@ -76,24 +76,27 @@ Live site is GitHub Pages from the `gh-pages` branch.
 
 ## Screenshots
 
-Contest frames under `/workspace/meta-vr/screens/pane-steward/` and mirrored in `screens/`. **Use `clean-*` only** (IWER gizmos/DevUI stripped):
+Contest frames under `/workspace/meta-vr/screens/pane-steward/` and mirrored in `screens/`. Prefer **duo-*** / **`clean-duo.png`** for character shots (hoodie duo only; IWER gizmos/DevUI stripped):
 
 | File | Shows |
 |------|--------|
-| **`clean-duo.png`** | **Primary character / cold-start shot** — hoodie male+female + Brief/Now/Done; no gizmos / no procedural steward (Contrast + A± visible in HUD) |
+| **`clean-duo.png`** | **Primary duo overview** — hoodie male+female + Brief/Now/Done; no gizmos / no procedural steward (Contrast + A± visible in HUD) |
+| **`duo-cold-start.png`** | **Cold start** — hoodie duo + intent chips |
+| **`duo-panes.png`** | **Panes** — Brief / Now / Done with hoodie duo |
+| **`duo-keep-undo.png`** | **Keep / Undo** — pending actions with hoodie duo |
 | `clean-panes.png` | Brief / Now / Done flow (pre-duo character — UX only) |
 | `clean-keep.png` | Keep pending (HUD + world twin; pre-duo character — UX only) |
 | `clean-undo.png` | Undo pending after Park (pre-duo character — UX only) |
 | `clean-demo-badge.png` | Demo Steward mode chip (pre-duo character — UX only) |
-| `clean-cold-start.png` | Older cold start + chips (**superseded for character** by `clean-duo.png`) |
+| `clean-cold-start.png` | Older cold start + chips (**superseded for character** by duo set) |
 
 Live tour: [Pages `?demo=1`](https://muditsharma354abc-bot.github.io/pane-steward/?demo=1). Re-capture clean XR: `node scripts/capture-clean.mjs` · duo: `node scripts/capture-duo.mjs`.
 
-**Note:** For **character / cold-start**, use **`clean-duo.png` only**. Older `clean-*` frames remain useful for Keep/Undo/panes UX flow but show the **pre-duo character** (captured before `f6aa0e3`) — do not treat them as the live duo look.
+**Note:** For **character shots**, prefer **`clean-duo.png`** + **`duo-cold-start.png` / `duo-panes.png` / `duo-keep-undo.png`**. Older `clean-*` frames remain useful for Keep/Undo/panes UX flow but show the **pre-duo character** (captured before `f6aa0e3`) — do not treat them as the live duo look.
 
 ## Current gaps (honest)
 
-Demo tour Keep→Undo + world-space Keep/Undo twins are **shipped**. Hoodie duo (no procedural steward) is **shipped** (`f6aa0e3`). A11y Contrast + A−/A+ + ≥48px targets are **shipped** (`a44b471`). Clean duo XR screen is **in repo** (`clean-duo.png`). Still thin vs full contest polish:
+Demo tour Keep→Undo + world-space Keep/Undo twins are **shipped**. Hoodie duo (no procedural steward) is **shipped** (`f6aa0e3`). A11y Contrast + A−/A+ + ≥48px targets are **shipped** (`a44b471`). Clean duo XR screens are **in repo** (`clean-duo.png` + `duo-*.png`). Still thin vs full contest polish:
 
 - Lip-sync and mic not shipped yet
 - Headset not yet tested on-device
