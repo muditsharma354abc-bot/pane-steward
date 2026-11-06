@@ -489,6 +489,7 @@ export class StewardSystem extends createSystem({
         const d = demoConnectorBody(service, this.lastIntent);
         const title = a.title?.trim() || d.title;
         const body = a.body?.trim() || d.body;
+        this.ensurePaneSlot(d.id);
         this.setStatus(`Opening ${title}… (demo Connect)`);
         this.panes.open(d.id, title, body);
         this.panes.focus(d.id);
@@ -524,6 +525,21 @@ export class StewardSystem extends createSystem({
     }
   }
 
+
+  /** Ensure room for a pane id — close Done or oldest if at cap. */
+  private ensurePaneSlot(preferId: string): void {
+    if (this.panes.panes.find((p) => p.id === preferId)) return;
+    if (this.panes.panes.length < 3) return;
+    const victim =
+      this.panes.panes.find((p) => p.id === 'done') ||
+      this.panes.panes.find((p) => !p.focused) ||
+      this.panes.panes[0];
+    if (victim) {
+      this.setStatus(`Making room — closing ${victim.title}`);
+      this.panes.close(victim.id);
+    }
+  }
+
   private async execOpenWeb(url: string, titleHint?: string): Promise<void> {
     if (!isConnected('web', this.connectors)) {
       this.setStatus('Web · Connect needed');
@@ -531,6 +547,7 @@ export class StewardSystem extends createSystem({
       this.panes.focus('brief');
       return;
     }
+    this.ensurePaneSlot('web');
     this.setStatus(`Opening ${url}…`);
     const offline = this.mode === 'demo' || !navigator.onLine || !hasLiveKey();
     // Demo Steward offline twin still simulates; live+online tries public fetch
