@@ -122,17 +122,20 @@ await page.evaluate(() => {
 const scaled = await page.evaluate(() => {
   const canvases = [...document.querySelectorAll('canvas')];
   let scaled = 0;
-  // Walk possible Three.js scenes via renderer refs is hard; instead bump any
-  // MeshBasicMaterial PlaneGeometry meshes near seated reach that use a texture.
+  // Scale hoodie glTF roots / legacy cutout planes for screenshot readability
   const tryRoot = (obj, depth = 0) => {
     if (!obj || depth > 30) return;
     if (obj.isMesh && obj.material?.map && obj.geometry?.type === 'PlaneGeometry') {
       const w = obj.geometry.parameters?.width ?? 0;
-      // character planes ~0.40 wide (transparent cutouts)
       if (w > 0.2 && w < 0.5) {
         obj.scale.set(1.85, 1.85, 1);
         scaled++;
       }
+    }
+    // glTF character roots named HoodieMale / HoodieFemale
+    if (obj.name === 'HoodieMale' || obj.name === 'HoodieFemale') {
+      obj.scale.setScalar((obj.scale?.x || 1) * 1.55);
+      scaled++;
     }
     for (const c of obj.children || []) tryRoot(c, depth + 1);
   };
@@ -169,7 +172,7 @@ await page.evaluate(() => {
 await page.waitForTimeout(400);
 
 const probe = await page.evaluate(() => ({
-  loadedHoodie: performance.getEntriesByType('resource').some((r) => /hoodie-(duo|male|female)/i.test(r.name)),
+  loadedHoodie: performance.getEntriesByType('resource').some((r) => /hoodie-(duo|male|female)\.(png|glb|jpg)/i.test(r.name)),
   controlMode: window.IWER_DEVICE?.controlMode,
   speech: document.getElementById('speech')?.textContent,
 }));

@@ -1,12 +1,11 @@
-import {
-  DoubleSide, Group, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace, TextureLoader,
-} from '@iwsdk/core';
+import { Group } from '@iwsdk/core';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 type Gesture = 'idle' | 'point' | 'open' | 'nod';
 
 /**
- * Hoodie duo — Shubham's locked claymation helpers (male left, female right).
- * Transparent PNG cutouts (no beige bg / no floating UI cards).
+ * Hoodie duo — procedural claymation glTF meshes (male left, female right).
+ * Loaded from public/characters/hoodie-{male,female}.glb (no photo billboards).
  * Same API: play(gesture), update(dt), talk(text).
  */
 export class StewardCharacter {
@@ -21,31 +20,38 @@ export class StewardCharacter {
 
   constructor() {
     const base = import.meta.env.BASE_URL;
-    const loader = new TextureLoader();
-    // Portrait cutouts ~265×509 / 261×498 → keep ~0.40 wide, height from aspect.
-    const make = (file: string, holder: Group, x: number, yaw: number, aspect: number) => {
-      const tex = loader.load(`${base}characters/${file}`);
-      tex.colorSpace = SRGBColorSpace;
-      const w = 0.40;
-      const h = w / aspect;
-      const mat = new MeshBasicMaterial({
-        map: tex,
-        side: DoubleSide,
-        toneMapped: false,
-        transparent: true,
-        alphaTest: 0.15,
-        depthWrite: false,
-      });
-      const plane = new Mesh(new PlaneGeometry(w, h), mat);
-      plane.position.y = h * 0.5; // feet near group origin
-      holder.add(plane);
+    const loader = new GLTFLoader();
+    const place = (holder: Group, x: number, yaw: number) => {
       holder.position.set(x, 1.0, -0.62);
-      holder.rotation.y = yaw; // angled in toward the pane zone
+      holder.rotation.y = yaw;
       this.root.add(holder);
     };
-    // male 265/509 ≈ 0.521; female 261/498 ≈ 0.524
-    make('hoodie-male.png', this.male, -0.22, 0.18, 265 / 509);
-    make('hoodie-female.png', this.female, 0.22, -0.18, 261 / 498);
+    place(this.male, -0.22, 0.22);
+    place(this.female, 0.22, -0.22);
+
+    const loadOne = (file: string, holder: Group) => {
+      loader.load(
+        `${base}characters/${file}`,
+        (gltf) => {
+          const model = gltf.scene;
+          model.traverse((o) => {
+            const m = o as { isMesh?: boolean; castShadow?: boolean; receiveShadow?: boolean };
+            if (m.isMesh) {
+              m.castShadow = true;
+              m.receiveShadow = true;
+            }
+          });
+          // Feet at group origin; chibi ~0.78m — slight scale bump for XR readability
+          model.scale.setScalar(1.05);
+          model.position.set(0, 0, 0);
+          holder.add(model);
+        },
+        undefined,
+        (err) => console.warn('[StewardCharacter] glTF load failed', file, err),
+      );
+    };
+    loadOne('hoodie-male.glb', this.male);
+    loadOne('hoodie-female.glb', this.female);
   }
 
   play(kind: Gesture): void {
@@ -80,7 +86,6 @@ export class StewardCharacter {
       h.rotation.z = 0;
     };
     base(this.male, 0); base(this.female, 1.3);
-    // talking: quick bob + squash on the active speaker
     if (this.talkT > 0) {
       const s = this.talker === 0 ? this.male : this.female;
       s.position.y += Math.abs(Math.sin(t * 14)) * 0.012;
