@@ -6,8 +6,8 @@ type Gesture = 'idle' | 'point' | 'open' | 'nod';
 
 /**
  * Hoodie duo — Shubham's locked claymation helpers (male left, female right).
- * Two textured billboards cropped from public/characters/hoodie-duo.jpg.
- * Same API as before: play(gesture), update(dt), plus talk(text) for speech.
+ * Transparent PNG cutouts (no beige bg / no floating UI cards).
+ * Same API: play(gesture), update(dt), talk(text).
  */
 export class StewardCharacter {
   readonly root = new Group();
@@ -20,23 +20,32 @@ export class StewardCharacter {
   private time = 0;
 
   constructor() {
-    const url = `${import.meta.env.BASE_URL}characters/hoodie-duo.jpg`;
+    const base = import.meta.env.BASE_URL;
     const loader = new TextureLoader();
-    const make = (half: 0 | 1, holder: Group, x: number, yaw: number) => {
-      const tex = loader.load(url);
+    // Portrait cutouts ~265×509 / 261×498 → keep ~0.40 wide, height from aspect.
+    const make = (file: string, holder: Group, x: number, yaw: number, aspect: number) => {
+      const tex = loader.load(`${base}characters/${file}`);
       tex.colorSpace = SRGBColorSpace;
-      tex.repeat.set(0.5, 1);
-      tex.offset.set(half * 0.5, 0);
-      const mat = new MeshBasicMaterial({ map: tex, side: DoubleSide, toneMapped: false });
-      const plane = new Mesh(new PlaneGeometry(0.36, 0.405), mat);
-      plane.position.y = 0.2;
+      const w = 0.40;
+      const h = w / aspect;
+      const mat = new MeshBasicMaterial({
+        map: tex,
+        side: DoubleSide,
+        toneMapped: false,
+        transparent: true,
+        alphaTest: 0.15,
+        depthWrite: false,
+      });
+      const plane = new Mesh(new PlaneGeometry(w, h), mat);
+      plane.position.y = h * 0.5; // feet near group origin
       holder.add(plane);
       holder.position.set(x, 1.0, -0.62);
       holder.rotation.y = yaw; // angled in toward the pane zone
       this.root.add(holder);
     };
-    make(0, this.male, -0.2, 0.18);
-    make(1, this.female, 0.2, -0.18);
+    // male 265/509 ≈ 0.521; female 261/498 ≈ 0.524
+    make('hoodie-male.png', this.male, -0.22, 0.18, 265 / 509);
+    make('hoodie-female.png', this.female, 0.22, -0.18, 261 / 498);
   }
 
   play(kind: Gesture): void {

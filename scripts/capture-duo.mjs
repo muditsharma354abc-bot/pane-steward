@@ -128,7 +128,7 @@ const scaled = await page.evaluate(() => {
     if (!obj || depth > 30) return;
     if (obj.isMesh && obj.material?.map && obj.geometry?.type === 'PlaneGeometry') {
       const w = obj.geometry.parameters?.width ?? 0;
-      // character planes are 0.36 x 0.405
+      // character planes ~0.40 wide (transparent cutouts)
       if (w > 0.2 && w < 0.5) {
         obj.scale.set(1.85, 1.85, 1);
         scaled++;
@@ -169,7 +169,7 @@ await page.evaluate(() => {
 await page.waitForTimeout(400);
 
 const probe = await page.evaluate(() => ({
-  loadedHoodie: performance.getEntriesByType('resource').some((r) => /hoodie-duo/i.test(r.name)),
+  loadedHoodie: performance.getEntriesByType('resource').some((r) => /hoodie-(duo|male|female)/i.test(r.name)),
   controlMode: window.IWER_DEVICE?.controlMode,
   speech: document.getElementById('speech')?.textContent,
 }));
