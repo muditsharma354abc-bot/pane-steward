@@ -28,12 +28,11 @@
 
 ## Eyes + hands
 
-Shipped interaction (document only what is on camera / in IWER — **not** a blanket Meta “Designing for eyes and hands” compliance claim, and **not** Quest-proven):
+Shipped interaction (document only what Judges scored as proven — **not** a blanket Meta “Designing for eyes and hands” compliance claim, and **not** Quest-proven):
 
-- **Gaze** can highlight / select vertical tabs and connector chips
-- **Long-hold** opens options (add / remove tab, Connect)
 - **Pinch** is the primary action; every action also has an a11y / HUD **button twin** (Keep-all / Undo-last included)
 - No fluff tooltips except critical
+- **Gaze** highlight/select and **long-hold** options: planned / IWER-unproven — **do not claim** as shipped
 
 ## Accessibility
 
@@ -68,7 +67,7 @@ Prefer `clean-*.png` under `screens/` and `/workspace/meta-vr/screens/pane-stewa
 
 ## Current gaps
 
-- Eyes + hands behaviors above are shipped for **IWER** local preview; **not yet tested on-device** (Quest headset).
+- Pinch + button twins are shipped for **IWER** local preview; **not yet tested on-device** (Quest headset). Gaze / long-hold remain unproven — do not claim.
 - Calendar / Mail / Notes remain demo Connect stubs (no OAuth).
 - Web Connect is public URL / fetch into a pane only — no account takeover / RPA.
 
