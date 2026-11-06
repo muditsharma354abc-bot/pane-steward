@@ -6,6 +6,7 @@ CLEAN XR (use these for judging / README) — IWER gizmos/DevUI hidden via contr
 - clean-keep.png        — Keep pending (HUD + world twin)
 - clean-undo.png        — Undo pending after Park
 - clean-demo-badge.png  — Demo Steward mode chip / HUD
+- clean-duo.png         — hoodie duo only (no procedural steward; IWER gizmos hidden)
 
 Recapture: cd /workspace/meta-vr/pane-steward && node scripts/capture-clean.mjs
 
