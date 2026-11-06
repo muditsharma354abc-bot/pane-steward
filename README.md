@@ -10,7 +10,7 @@ Chat AI that steers your spatial panes — a seated steward character opens up t
 
 1. Cold start with a character + chat + intent chips (**Prep call** / **Park this** / **What's next**)
 2. Steward proposes a short plan (reason chip), then opens / focuses up to **3 spatial panes**
-3. You **Keep** or **Undo** (Undo reverses the last tool batch)
+3. You **Keep** or **Undo** — HUD buttons **and** world-space twins (Undo reverses the last tool batch)
 4. Session strip tracks steward actions vs keeps
 
 ## Modes
@@ -42,7 +42,7 @@ npm run dev
 
 | Flag | Effect |
 |------|--------|
-| `?demo=1` | Autoplay First Five hero loop (chat → ≤3 panes → Keep → Undo) |
+| `?demo=1` | Autoplay hero loop: chat → Prep call opens ≤3 panes (Brief/Now/Done) → Keep → Park this → Undo (speech + world-space twins; no API key) |
 | `?key=` | Store API key in `sessionStorage`, strip from URL — never commit |
 | `?host=` | Optional OpenAI-compatible host |
 | `?model=` | Optional model id |
@@ -64,13 +64,17 @@ npm run build
 
 Live site is GitHub Pages from the `gh-pages` branch.
 
+## Screenshots
+
+Clean product frames (IWER gizmos / controller debug hidden) coming soon — holding until Build posts a clean set. Live tour today: [Pages `?demo=1`](https://muditsharma354abc-bot.github.io/pane-steward/?demo=1).
+
 ## Current gaps (honest)
 
-First playable scaffold — thin vs full contest polish:
+Live at `main` `02f2092` / Pages `gh-pages` `7a423f2` — demo tour Keep→Undo + world-space Keep/Undo twins are **shipped**. Still thin vs full contest polish:
 
-- World-space Keep/Undo rays (HUD twins only for now)
 - Lip-sync, mic, a11y toggles not shipped yet
-- Screenshots / capture assets not in repo yet
+- Headset not yet tested on-device
+- Clean README screenshots pending (no debug overlays)
 
 ## Out of scope (v1)
 
