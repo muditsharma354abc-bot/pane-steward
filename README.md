@@ -2,10 +2,10 @@
 
 **Meta VR Start Developer Competition 2026 · Productivity · New Experience**
 
-Chat AI that steers your **spatial panes** — the locked **hoodie duo** (male + female claymation-style helpers in charcoal hoodies, side-by-side billboards from `hoodie-duo.jpg`) chat, talk (browser `speechSynthesis` + bob), open up to **≤3 spatial panes**, propose the next step, and wait for **Keep** or **Undo**. No procedural / blocky / sphere / middle steward — duo only. Not a desk/plant clone. Content is chat-filled pane text — **not** real browser tabs, OAuth, or site/platform automation.
+Chat AI that steers your **spatial panes** — the locked **hoodie duo** as procedural **glTF meshes** (`hoodie-male.glb` + `hoodie-female.glb`: male + female claymation-style helpers in charcoal hoodies) chat, talk (browser `speechSynthesis` + bob), open up to **≤3 spatial panes**, propose the next step, and wait for **Keep** or **Undo**. No procedural / blocky / sphere / middle steward — duo only. Not a desk/plant clone. Content is chat-filled pane text — **not** real browser tabs, OAuth, or site/platform automation. Honesty: meshes are procedural primitives exported as glTF — **not** photogrammetry and **not** Meta sample assets.
 
 **Live:** https://muditsharma354abc-bot.github.io/pane-steward/?demo=1  
-**Live build:** commit `a44b471` · bundle `index-83EEt4gB.js`
+**Live build:** commit `7b749d5` · bundle `index-D83uXN7P.js`
 
 ## What it does
 
@@ -61,7 +61,7 @@ npm run dev
 ## Stack
 
 - IWSDK `@iwsdk/core` **1.1.0-rc.2** + Vite + IWER emulator
-- Locked hoodie duo: textured billboards from `public/characters/hoodie-duo.jpg` (male left + female right), talk bob + `speechSynthesis` on each reply, point/open/nod gestures on pane steer and Keep/Undo
+- Locked hoodie duo: procedural glTF meshes `public/characters/hoodie-male.glb` + `hoodie-female.glb` (claymation-style male left + female right; no photo background / no billboards), talk bob + `speechSynthesis` on each reply, point/open/nod gestures on pane steer and Keep/Undo — **not** photogrammetry / Meta samples
 - Canvas spatial panes (max 3)
 - Tools: `open_pane`, `close_pane`, `focus_pane`, `set_pane_text`, `propose_plan`, `complete_step`
 
@@ -76,14 +76,14 @@ Live site is GitHub Pages from the `gh-pages` branch.
 
 ## Screenshots
 
-Contest frames under `/workspace/meta-vr/screens/pane-steward/` and mirrored in `screens/`. Prefer **duo-*** / **`clean-duo.png`** for character shots (hoodie duo only; IWER gizmos/DevUI stripped):
+Contest frames under `/workspace/meta-vr/screens/pane-steward/` and mirrored in `screens/`. Prefer **duo-*** / **`clean-duo.png`** for character shots (procedural glTF claymation duo — no photo background; IWER gizmos/DevUI stripped):
 
 | File | Shows |
 |------|--------|
-| **`clean-duo.png`** | **Primary duo overview** — hoodie male+female + Brief/Now/Done; no gizmos / no procedural steward (Contrast + A± visible in HUD) |
-| **`duo-cold-start.png`** | **Cold start** — hoodie duo + intent chips |
-| **`duo-panes.png`** | **Panes** — Brief / Now / Done with hoodie duo |
-| **`duo-keep-undo.png`** | **Keep / Undo** — pending actions with hoodie duo |
+| **`clean-duo.png`** | **Primary duo overview** — procedural glTF hoodie male+female + Brief/Now/Done; no photo bg / no gizmos / no middle steward (Contrast + A± visible in HUD) |
+| **`duo-cold-start.png`** | **Cold start** — procedural glTF hoodie duo + intent chips (no photo bg) |
+| **`duo-panes.png`** | **Panes** — Brief / Now / Done with procedural glTF hoodie duo |
+| **`duo-keep-undo.png`** | **Keep / Undo** — pending actions with procedural glTF hoodie duo |
 | `clean-panes.png` | Brief / Now / Done flow (pre-duo character — UX only) |
 | `clean-keep.png` | Keep pending (HUD + world twin; pre-duo character — UX only) |
 | `clean-undo.png` | Undo pending after Park (pre-duo character — UX only) |
@@ -92,11 +92,11 @@ Contest frames under `/workspace/meta-vr/screens/pane-steward/` and mirrored in 
 
 Live tour: [Pages `?demo=1`](https://muditsharma354abc-bot.github.io/pane-steward/?demo=1). Re-capture clean XR: `node scripts/capture-clean.mjs` · duo: `node scripts/capture-duo.mjs`.
 
-**Note:** For **character shots**, prefer **`clean-duo.png`** + **`duo-cold-start.png` / `duo-panes.png` / `duo-keep-undo.png`**. Older `clean-*` frames remain useful for Keep/Undo/panes UX flow but show the **pre-duo character** (captured before `f6aa0e3`) — do not treat them as the live duo look.
+**Note:** For **character shots**, prefer **`clean-duo.png`** + **`duo-cold-start.png` / `duo-panes.png` / `duo-keep-undo.png`** — they show the live **procedural glTF claymation duo** (no photo background / no billboard era). Older `clean-*` frames remain useful for Keep/Undo/panes UX flow but show the **pre-duo character** (captured before `f6aa0e3`) — do not treat them as the live duo look.
 
 ## Current gaps (honest)
 
-Demo tour Keep→Undo + world-space Keep/Undo twins are **shipped**. Hoodie duo (no procedural steward) is **shipped** (`f6aa0e3`). A11y Contrast + A−/A+ + ≥48px targets are **shipped** (`a44b471`). Clean duo XR screens are **in repo** (`clean-duo.png` + `duo-*.png`). Still thin vs full contest polish:
+Demo tour Keep→Undo + world-space Keep/Undo twins are **shipped**. Procedural glTF hoodie duo (`hoodie-male.glb` + `hoodie-female.glb`, no photo bg / no billboards) is **shipped** (`7b749d5`). A11y Contrast + A−/A+ + ≥48px targets are **shipped** (`a44b471`). Clean duo XR screens are **in repo** (`clean-duo.png` + `duo-*.png`). Still thin vs full contest polish:
 
 - Lip-sync and mic not shipped yet
 - Headset not yet tested on-device
