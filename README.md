@@ -2,15 +2,16 @@
 
 **Meta VR Start Developer Competition 2026 · Productivity · New Experience**
 
-Chat AI that steers your spatial panes — the **hoodie duo** (two claymation helpers in charcoal hoodies) chat, talk (browser speech), open up to **3** tabs, propose the next step, and wait for **Keep** or **Undo**. Not a desk/plant clone.
+Chat AI that steers your spatial panes — the locked **hoodie duo** (male + female claymation-style helpers in charcoal hoodies, side-by-side billboards from `hoodie-duo.jpg`) chat, talk (browser `speechSynthesis` + bob), open up to **3** tabs, propose the next step, and wait for **Keep** or **Undo**. No procedural / blocky / sphere / middle steward — duo only. Not a desk/plant clone.
 
-**Live:** https://muditsharma354abc-bot.github.io/pane-steward/?demo=1
+**Live:** https://muditsharma354abc-bot.github.io/pane-steward/?demo=1  
+**Live build:** commit `f6aa0e3` · bundle `index-DvNLrt-P.js`
 
 ## What it does
 
-1. Cold start with a character + chat + intent chips (**Prep call** / **Park this** / **What's next**)
-2. Steward proposes a short plan (reason chip), then opens / focuses up to **3 spatial panes**
-3. You **Keep** or **Undo** — HUD buttons **and** world-space twins (Undo reverses the last tool batch)
+1. Cold start with the hoodie duo + chat + intent chips (**Prep call** / **Park this** / **What's next**)
+2. Steward proposes a short plan (reason chip), then opens / focuses up to **3 spatial panes** — duo point/open/nod on pane work
+3. You **Keep** or **Undo** — HUD buttons **and** world-space twins (Undo reverses the last tool batch); duo gesture on Keep/Undo
 4. Session strip tracks steward actions vs keeps
 
 ## Modes
@@ -51,7 +52,7 @@ npm run dev
 ## Stack
 
 - IWSDK `@iwsdk/core` **1.1.0-rc.2** + Vite + IWER emulator
-- Hoodie duo characters: textured billboards from `public/characters/hoodie-duo.jpg` (male + female), talk bob + `speechSynthesis` on each reply, point/open/nod gestures on pane steer, Keep and Undo
+- Locked hoodie duo: textured billboards from `public/characters/hoodie-duo.jpg` (male left + female right), talk bob + `speechSynthesis` on each reply, point/open/nod gestures on pane steer and Keep/Undo
 - Canvas spatial panes (max 3)
 - Tools: `open_pane`, `close_pane`, `focus_pane`, `set_pane_text`, `propose_plan`, `complete_step`
 
@@ -78,12 +79,15 @@ Contest frames under `/workspace/meta-vr/screens/pane-steward/` and mirrored in 
 
 Live tour: [Pages `?demo=1`](https://muditsharma354abc-bot.github.io/pane-steward/?demo=1). Re-capture clean XR: `node scripts/capture-clean.mjs`.
 
+**Note:** `clean-*` panes / Keep / Undo / demo-badge frames are still valid for UX flow, but the **character in those shots predates the hoodie duo** (captured before `f6aa0e3`). Clean duo recapture is pending from Build — do not treat those frames as the live duo look.
+
 ## Current gaps (honest)
 
-Demo tour Keep→Undo + world-space Keep/Undo twins are **shipped** (d346796). Still thin vs full contest polish:
+Demo tour Keep→Undo + world-space Keep/Undo twins are **shipped** (d346796). Hoodie duo (no procedural steward) is **shipped** (`f6aa0e3`). Still thin vs full contest polish:
 
 - Lip-sync, mic, a11y toggles not shipped yet
 - Headset not yet tested on-device
+- Clean duo screen capture not in repo yet (`clean-*` still show the pre-duo character)
 - Clean XR screens (`clean-*.png`) hide IWER DevUI via `controlMode=programmatic`
 
 ## Out of scope (v1)
