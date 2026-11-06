@@ -66,15 +66,26 @@ Live site is GitHub Pages from the `gh-pages` branch.
 
 ## Screenshots
 
-Clean product frames (IWER gizmos / controller debug hidden) coming soon — holding until Build posts a clean set. Live tour today: [Pages `?demo=1`](https://muditsharma354abc-bot.github.io/pane-steward/?demo=1).
+Contest frames (flat HUD + XR) under `/workspace/meta-vr/screens/pane-steward/` and mirrored in `screens/`:
+
+| File | Shows |
+|------|--------|
+| `chips.png` | Intent chips + character |
+| `panes-3.png` | Brief / Now / Done |
+| `keep.png` | Keep pending (HUD + world twin) |
+| `undo.png` | Undo pending after Park |
+| `demo-badge.png` | Demo Steward mode chip |
+| `panes-3-xr.png` | XR emulator 3-pane frame |
+
+Live tour: [Pages `?demo=1`](https://muditsharma354abc-bot.github.io/pane-steward/?demo=1). Re-capture: `node scripts/capture.mjs`.
 
 ## Current gaps (honest)
 
-Live at `main` `02f2092` / Pages `gh-pages` `7a423f2` — demo tour Keep→Undo + world-space Keep/Undo twins are **shipped**. Still thin vs full contest polish:
+Demo tour Keep→Undo + world-space Keep/Undo twins are **shipped** (d346796). Still thin vs full contest polish:
 
 - Lip-sync, mic, a11y toggles not shipped yet
 - Headset not yet tested on-device
-- Clean README screenshots pending (no debug overlays)
+- Flat HUD screens are in `screens/`; XR frame still shows IWER debug overlays
 
 ## Out of scope (v1)
 
