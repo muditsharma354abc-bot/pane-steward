@@ -177,6 +177,7 @@ export class StewardSystem extends createSystem({
 
   private setSpeech(s: string): void {
     el<HTMLDivElement>('speech').textContent = s;
+    this.character.talk(s);
   }
 
   private setReason(s: string): void {

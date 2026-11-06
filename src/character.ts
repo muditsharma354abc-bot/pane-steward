@@ -1,71 +1,94 @@
 import {
-  BoxGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial, SphereGeometry,
+  DoubleSide, Group, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace, TextureLoader,
 } from '@iwsdk/core';
 
-/** Simple procedural steward — head, torso, arms; gesture stubs for tool mirroring. */
+type Gesture = 'idle' | 'point' | 'open' | 'nod';
+
+/**
+ * Hoodie duo — Shubham's locked claymation helpers (male left, female right).
+ * Two textured billboards cropped from public/characters/hoodie-duo.jpg.
+ * Same API as before: play(gesture), update(dt), plus talk(text) for speech.
+ */
 export class StewardCharacter {
   readonly root = new Group();
-  private leftArm: Mesh;
-  private rightArm: Mesh;
-  private head: Mesh;
+  private male = new Group();
+  private female = new Group();
   private gestureT = 0;
-  private gesture: 'idle' | 'point' | 'open' | 'nod' = 'idle';
+  private gesture: Gesture = 'idle';
+  private talkT = 0;
+  private talker: 0 | 1 = 0;
+  private time = 0;
 
   constructor() {
-    const skin = new MeshStandardMaterial({ color: '#c9a07a', roughness: 0.65 });
-    const cloth = new MeshStandardMaterial({ color: '#3a4a7a', roughness: 0.7 });
-    const accent = new MeshStandardMaterial({ color: '#7c9cff', roughness: 0.4, emissive: '#1a2a66', emissiveIntensity: 0.35 });
-
-    const torso = new Mesh(new BoxGeometry(0.22, 0.32, 0.14), cloth);
-    torso.position.set(0, 1.15, -0.55);
-    this.root.add(torso);
-
-    this.head = new Mesh(new SphereGeometry(0.09, 16, 12), skin);
-    this.head.position.set(0, 1.42, -0.55);
-    this.root.add(this.head);
-
-    const visor = new Mesh(new BoxGeometry(0.12, 0.03, 0.02), accent);
-    visor.position.set(0, 1.43, -0.47);
-    this.root.add(visor);
-
-    this.leftArm = new Mesh(new CylinderGeometry(0.025, 0.03, 0.28, 8), cloth);
-    this.leftArm.position.set(-0.16, 1.2, -0.55);
-    this.leftArm.rotation.z = 0.4;
-    this.root.add(this.leftArm);
-
-    this.rightArm = new Mesh(new CylinderGeometry(0.025, 0.03, 0.28, 8), cloth);
-    this.rightArm.position.set(0.16, 1.2, -0.55);
-    this.rightArm.rotation.z = -0.4;
-    this.root.add(this.rightArm);
-
-    const base = new Mesh(new CylinderGeometry(0.12, 0.14, 0.04, 16), accent);
-    base.position.set(0, 0.98, -0.55);
-    this.root.add(base);
+    const url = `${import.meta.env.BASE_URL}characters/hoodie-duo.jpg`;
+    const loader = new TextureLoader();
+    const make = (half: 0 | 1, holder: Group, x: number, yaw: number) => {
+      const tex = loader.load(url);
+      tex.colorSpace = SRGBColorSpace;
+      tex.repeat.set(0.5, 1);
+      tex.offset.set(half * 0.5, 0);
+      const mat = new MeshBasicMaterial({ map: tex, side: DoubleSide, toneMapped: false });
+      const plane = new Mesh(new PlaneGeometry(0.36, 0.405), mat);
+      plane.position.y = 0.2;
+      holder.add(plane);
+      holder.position.set(x, 1.0, -0.62);
+      holder.rotation.y = yaw; // angled in toward the pane zone
+      this.root.add(holder);
+    };
+    make(0, this.male, -0.2, 0.18);
+    make(1, this.female, 0.2, -0.18);
   }
 
-  play(kind: 'idle' | 'point' | 'open' | 'nod'): void {
+  play(kind: Gesture): void {
     this.gesture = kind;
     this.gestureT = 0;
   }
 
+  /** Talk pose + non-blocking browser TTS; duo alternates who speaks. */
+  talk(text: string): void {
+    this.talker = this.talker === 0 ? 1 : 0;
+    this.talkT = Math.min(4, 0.6 + text.length * 0.05);
+    try {
+      const ss = (globalThis as any).speechSynthesis as SpeechSynthesis | undefined;
+      if (ss && text && typeof SpeechSynthesisUtterance !== 'undefined') {
+        ss.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.rate = 1.05;
+        u.pitch = this.talker === 0 ? 0.9 : 1.25;
+        ss.speak(u);
+      }
+    } catch { /* TTS optional */ }
+  }
+
   update(dt: number): void {
+    this.time += dt;
     this.gestureT += dt;
-    const t = this.gestureT;
-    if (this.gesture === 'idle') {
-      this.head.position.y = 1.42 + Math.sin(t * 1.4) * 0.008;
-      this.rightArm.rotation.z = -0.4 + Math.sin(t * 1.1) * 0.05;
-      this.leftArm.rotation.z = 0.4 + Math.sin(t * 1.1 + 1) * 0.05;
-    } else if (this.gesture === 'point') {
-      this.rightArm.rotation.z = -1.1;
-      this.rightArm.rotation.x = -0.6 + Math.sin(t * 6) * 0.05;
-      if (t > 0.9) this.gesture = 'idle';
+    this.talkT = Math.max(0, this.talkT - dt);
+    const t = this.time, g = this.gestureT;
+    const base = (h: Group, phase: number) => {
+      h.position.y = 1.0 + Math.sin(t * 1.4 + phase) * 0.006;
+      h.scale.set(1, 1, 1);
+      h.rotation.z = 0;
+    };
+    base(this.male, 0); base(this.female, 1.3);
+    // talking: quick bob + squash on the active speaker
+    if (this.talkT > 0) {
+      const s = this.talker === 0 ? this.male : this.female;
+      s.position.y += Math.abs(Math.sin(t * 14)) * 0.012;
+      s.scale.y = 1 + Math.sin(t * 14) * 0.015;
+    }
+    if (this.gesture === 'point') {
+      const lean = Math.sin(Math.min(g, 0.9) / 0.9 * Math.PI) * 0.06;
+      this.male.rotation.z = -lean; this.female.rotation.z = lean;
+      if (g > 0.9) this.gesture = 'idle';
     } else if (this.gesture === 'open') {
-      this.leftArm.rotation.z = 1.0;
-      this.rightArm.rotation.z = -1.0;
-      if (t > 0.85) this.gesture = 'idle';
+      const k = 1 + Math.sin(Math.min(g, 0.85) / 0.85 * Math.PI) * 0.06;
+      this.male.scale.set(k, k, 1); this.female.scale.set(k, k, 1);
+      if (g > 0.85) this.gesture = 'idle';
     } else if (this.gesture === 'nod') {
-      this.head.rotation.x = Math.sin(t * 10) * 0.18;
-      if (t > 0.6) { this.head.rotation.x = 0; this.gesture = 'idle'; }
+      const d = Math.sin(g * 12) * 0.012;
+      this.male.position.y -= d; this.female.position.y -= d;
+      if (g > 0.6) this.gesture = 'idle';
     }
   }
 }

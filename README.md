@@ -2,7 +2,7 @@
 
 **Meta VR Start Developer Competition 2026 · Productivity · New Experience**
 
-Chat AI that steers your spatial panes — a seated steward character opens up to **3** tabs, proposes the next step, and waits for **Keep** or **Undo**. Not a desk/plant clone.
+Chat AI that steers your spatial panes — the **hoodie duo** (two claymation helpers in charcoal hoodies) chat, talk (browser speech), open up to **3** tabs, propose the next step, and wait for **Keep** or **Undo**. Not a desk/plant clone.
 
 **Live:** https://muditsharma354abc-bot.github.io/pane-steward/?demo=1
 
@@ -51,7 +51,7 @@ npm run dev
 ## Stack
 
 - IWSDK `@iwsdk/core` **1.1.0-rc.2** + Vite + IWER emulator
-- Procedural character (simple mesh + gesture stubs)
+- Hoodie duo characters: textured billboards from `public/characters/hoodie-duo.jpg` (male + female), talk bob + `speechSynthesis` on each reply, point/open/nod gestures on pane steer, Keep and Undo
 - Canvas spatial panes (max 3)
 - Tools: `open_pane`, `close_pane`, `focus_pane`, `set_pane_text`, `propose_plan`, `complete_step`
 
