@@ -66,18 +66,17 @@ Live site is GitHub Pages from the `gh-pages` branch.
 
 ## Screenshots
 
-Contest frames (flat HUD + XR) under `/workspace/meta-vr/screens/pane-steward/` and mirrored in `screens/`:
+Contest frames under `/workspace/meta-vr/screens/pane-steward/` and mirrored in `screens/`. **Use `clean-*` only** (IWER gizmos/DevUI stripped):
 
 | File | Shows |
 |------|--------|
-| `chips.png` | Intent chips + character |
-| `panes-3.png` | Brief / Now / Done |
-| `keep.png` | Keep pending (HUD + world twin) |
-| `undo.png` | Undo pending after Park |
-| `demo-badge.png` | Demo Steward mode chip |
-| `panes-3-xr.png` | XR emulator 3-pane frame |
+| `clean-cold-start.png` | Cold start + intent chips |
+| `clean-panes.png` | Brief / Now / Done |
+| `clean-keep.png` | Keep pending (HUD + world twin) |
+| `clean-undo.png` | Undo pending after Park |
+| `clean-demo-badge.png` | Demo Steward mode chip |
 
-Live tour: [Pages `?demo=1`](https://muditsharma354abc-bot.github.io/pane-steward/?demo=1). Re-capture: `node scripts/capture.mjs`.
+Live tour: [Pages `?demo=1`](https://muditsharma354abc-bot.github.io/pane-steward/?demo=1). Re-capture clean XR: `node scripts/capture-clean.mjs`.
 
 ## Current gaps (honest)
 
@@ -85,7 +84,7 @@ Demo tour Keep→Undo + world-space Keep/Undo twins are **shipped** (d346796). S
 
 - Lip-sync, mic, a11y toggles not shipped yet
 - Headset not yet tested on-device
-- Flat HUD screens are in `screens/`; XR frame still shows IWER debug overlays
+- Clean XR screens (`clean-*.png`) hide IWER DevUI via `controlMode=programmatic`
 
 ## Out of scope (v1)
 
