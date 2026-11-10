@@ -20,6 +20,6 @@ import { StewardSystem } from './steward-system.js';
 void loadFonts().then(() =>
   World.create(document.getElementById('scene-container') as HTMLDivElement, projectOptions).then((world) => {
     world.registerSystem(StewardSystem);
-    if (import.meta.env.DEV) (window as unknown as { __psWorld: unknown }).__psWorld = world;
+    (window as unknown as { __psWorld: unknown }).__psWorld = world;
   }),
 );

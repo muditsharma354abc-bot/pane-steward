@@ -56,6 +56,7 @@ type WorldBtn = {
   gazed: boolean;
   twin: string;
   title: string;
+  wantVisible: boolean;
 };
 
 const GUIDE = [
@@ -122,6 +123,7 @@ export class StewardSystem extends createSystem({
     this.panes.onChange = () => this.syncTabUi();
     this.buildWorldBtns();
     this.wireXrVis();
+    this.markChromeWorldVisible();
     this.bindHud();
     this.applyA11y(true);
     this.paintSession();
@@ -130,7 +132,7 @@ export class StewardSystem extends createSystem({
     this.setStatus(hasLiveKey()
       ? 'Live chat · ready — ask to open up to 3 tabs'
       : 'Demo Steward · offline twin — no API key needed');
-    if (import.meta.env.DEV) (window as unknown as { __ps: unknown }).__ps = this;
+    (window as unknown as { __ps: unknown }).__ps = this;
   }
 
   update(dt: number): void {
@@ -149,16 +151,37 @@ export class StewardSystem extends createSystem({
 
   private wireXrVis(): void {
     const xr = (this.world as unknown as { renderer?: { xr?: { addEventListener?: (e: string, fn: () => void) => void } } }).renderer?.xr;
-    xr?.addEventListener?.('sessionstart', () => { this.xrOn = true; });
+    xr?.addEventListener?.('sessionstart', () => {
+      this.xrOn = true;
+      this.applyWorldVis();
+    });
     xr?.addEventListener?.('sessionend', () => {
       this.xrOn = false;
-      for (const b of this.buttons.values()) b.label.mesh.visible = false;
+      this.applyWorldVis();
     });
-    for (const b of this.buttons.values()) b.label.mesh.visible = false;
+    this.applyWorldVis();
+  }
+
+  private markChromeWorldVisible(): void {
+    for (const b of this.buttons.values()) {
+      if (
+        b.kind === 'start' || b.kind === 'mute' || b.kind === 'options' ||
+        b.kind === 'demo' || b.kind === 'add' ||
+        b.kind.startsWith('conn-') || b.kind.startsWith('intent-')
+      ) b.wantVisible = true;
+    }
+  }
+
+  private applyWorldVis(): void {
+    for (const b of this.buttons.values()) {
+      b.label.mesh.visible = !!(b.wantVisible && this.xrOn);
+    }
   }
 
   private setVis(b: WorldBtn | undefined, on: boolean): void {
-    if (b) b.label.mesh.visible = !!(on && this.xrOn);
+    if (!b) return;
+    b.wantVisible = on;
+    b.label.mesh.visible = !!(on && this.xrOn);
   }
 
   private pollWorld(): void {
@@ -258,7 +281,7 @@ export class StewardSystem extends createSystem({
     label.mesh.position.set(pos[0], pos[1], pos[2]);
     const b: WorldBtn = {
       label, entity, action, hold: extra?.hold, kind,
-      pressAt: 0, held: false, gazed: false,
+      pressAt: 0, held: false, gazed: false, wantVisible: false,
       twin: extra?.twin ?? '', title,
     };
     this.buttons.set(entity.index, b);
@@ -497,8 +520,9 @@ export class StewardSystem extends createSystem({
       const icon = document.createElement('span');
       icon.className = 'tab-icon';
       icon.textContent = tabIcon(p.id);
-      sel.append(icon, document.createTextNode(p.title.slice(0, 16) || p.id));
+      sel.append(icon, document.createTextNode(p.title || p.id));
       sel.title = p.title;
+      sel.setAttribute('aria-label', p.title);
       bindGazeHold(sel, {
         onClick: () => {
           this.panes.focus(p.id);

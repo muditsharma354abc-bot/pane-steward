@@ -105,17 +105,20 @@ await page.waitForFunction(() => !document.getElementById('btn-keep')?.disabled,
 await page.waitForTimeout(1600);
 await cleanChrome();
 await shot('light-panes.png');
+
+await forceClick('#btn-keep');
+await page.waitForTimeout(280);
+await cleanChrome();
 await shot('light-keep.png');
 
-// Gaze highlight on the active tab
-const tabSel = '.tab-item.active, .tab-item';
-await page.hover('.tab-item .tab-select').catch((e) => errs.push('hover tab: ' + e.message));
-await page.evaluate(() => {
-  document.querySelector('.tab-item')?.classList.add('gaze');
-});
+// Gaze highlight after cleanChrome so pointerleave does not clear it
 await cleanChrome();
+await page.evaluate(() => {
+  document.querySelectorAll('.tab-item')[1]?.classList.add('gaze');
+  document.querySelector('#connectors [data-conn="calendar"]')?.classList.add('gaze');
+});
 await shot('light-gaze.png');
-await page.evaluate(() => document.querySelector('.tab-item')?.classList.remove('gaze'));
+await page.evaluate(() => document.querySelectorAll('.gaze').forEach((n) => n.classList.remove('gaze')));
 
 // Long-hold options popover
 await page.evaluate(() => {
@@ -170,5 +173,128 @@ const hud = await page.evaluate(() => ({
   coldHidden: document.getElementById('cold-start')?.hidden,
 }));
 console.log(JSON.stringify({ hud, errs: errs.slice(0, 20) }, null, 2));
+
+const hideHudForXr = async () => {
+  await page.evaluate(() => {
+    try {
+      if (window.IWER_DEVICE) {
+        window.IWER_DEVICE.controlMode = 'programmatic';
+      }
+    } catch {}
+    for (const el of document.querySelectorAll('body > div')) {
+      if (el.shadowRoot) el.style.setProperty('display', 'none', 'important');
+    }
+    for (const id of ['top-bar', 'tab-rail', 'pane-stage', 'chat-dock', 'cold-start', 'guide', 'opts-pop']) {
+      const el = document.getElementById(id);
+      if (el) el.style.setProperty('display', 'none', 'important');
+    }
+    const sc = document.getElementById('scene-container');
+    if (sc) {
+      sc.style.zIndex = '1';
+      sc.style.display = 'block';
+      sc.style.visibility = 'visible';
+    }
+  });
+};
+
+const xrNote = { entered: false, hovered: false, held: false, detail: '' };
+
+try {
+  await forceClick('#btn-enter');
+  await page.waitForTimeout(3500);
+  const presenting = await page.evaluate(() => {
+    const w = window.__psWorld || window.__ps?.world;
+    return !!(w?.renderer?.xr?.isPresenting || window.IWER_DEVICE);
+  });
+  xrNote.entered = !!presenting;
+  await hideHudForXr();
+  await page.waitForTimeout(800);
+  await shot('light-xr-panes.png');
+
+  // Try IWER hover on a visible world twin
+  const hover = await page.evaluate(async () => {
+    const ps = window.__ps;
+    const d = window.IWER_DEVICE;
+    if (!ps || !d) return { ok: false, why: 'no __ps or IWER' };
+    d.primaryInputMode = 'hand';
+    d.controlMode = 'programmatic';
+    const list = [...(ps.buttons?.values?.() || [])];
+    const target = list.find((b) => b.label?.mesh?.visible && (b.kind?.startsWith('tab') || b.kind === 'keep' || b.kind.startsWith('intent'))) || list.find((b) => b.label?.mesh?.visible);
+    if (!target) return { ok: false, why: 'no visible world btn', kinds: list.map((b) => [b.kind, !!b.label?.mesh?.visible]) };
+    const m = target.label.mesh;
+    m.updateMatrixWorld();
+    const V = m.position.constructor;
+    const pos = m.getWorldPosition(new V());
+    const n = new V(0, 0, 1).applyQuaternion(m.getWorldQuaternion(new m.quaternion.constructor()));
+    const R = d.hands?.right;
+    if (!R) return { ok: false, why: 'no right hand' };
+    if (R.connected === false) R.connected = true;
+    try { R.poseId = 'point'; } catch {}
+    for (let i = 0; i <= 18; i++) {
+      const dd = 0.22 - 0.10 * (i / 18);
+      if (R.setPin) R.setPin({ anchor: 'index-tip', target: [pos.x + n.x * dd, pos.y + n.y * dd, pos.z + n.z * dd] });
+      await new Promise((r) => setTimeout(r, 30));
+    }
+    await new Promise((r) => setTimeout(r, 200));
+    return { ok: !!target.gazed || !!target.entity?.hasComponent, gazed: !!target.gazed, kind: target.kind };
+  });
+  xrNote.detail = JSON.stringify(hover);
+  xrNote.hovered = !!(hover && hover.gazed);
+  await hideHudForXr();
+  await page.waitForTimeout(250);
+  await shot('light-xr-gaze.png');
+
+  const held = await page.evaluate(async () => {
+    const ps = window.__ps;
+    const d = window.IWER_DEVICE;
+    if (!ps || !d?.hands?.right) return { ok: false, why: 'missing' };
+    const list = [...(ps.buttons?.values?.() || [])];
+    const target = list.find((b) => b.hold && b.label?.mesh?.visible) || list.find((b) => b.kind?.startsWith('tab') && b.label?.mesh?.visible);
+    if (!target) return { ok: false, why: 'no holdable' };
+    const m = target.label.mesh;
+    m.updateMatrixWorld();
+    const V = m.position.constructor;
+    const pos = m.getWorldPosition(new V());
+    const n = new V(0, 0, 1).applyQuaternion(m.getWorldQuaternion(new m.quaternion.constructor()));
+    const R = d.hands.right;
+    if (R.connected === false) R.connected = true;
+    if (R.setPin) R.setPin({ anchor: 'index-tip', target: [pos.x + n.x * 0.04, pos.y + n.y * 0.04, pos.z + n.z * 0.04] });
+    if (R.updatePinchValue) R.updatePinchValue(1);
+    await new Promise((r) => setTimeout(r, 750));
+    const pop = document.getElementById('opts-pop');
+    const open = pop && !pop.hidden;
+    if (R.updatePinchValue) R.updatePinchValue(0);
+    return { ok: !!open, kind: target.kind };
+  });
+  xrNote.held = !!(held && held.ok);
+  xrNote.detail += ' | hold ' + JSON.stringify(held);
+  if (held && held.ok) {
+    await page.evaluate(() => {
+      const pop = document.getElementById('opts-pop');
+      if (pop) pop.style.setProperty('display', 'block', 'important');
+    });
+  }
+  await page.waitForTimeout(200);
+  await shot('light-xr-longhold.png');
+} catch (e) {
+  xrNote.detail = String(e);
+  errs.push('xr: ' + e.message);
+}
+
+// Fresh load for XR cold start (world Start twin, no HTML overlay)
+try {
+  await page.goto(U, { waitUntil: 'networkidle', timeout: 90000 });
+  await page.waitForSelector('#cold-start', { timeout: 30000 });
+  await page.waitForTimeout(1500);
+  await forceClick('#btn-enter');
+  await page.waitForTimeout(3500);
+  await hideHudForXr();
+  await page.waitForTimeout(600);
+  await shot('light-xr-cold-start.png');
+} catch (e) {
+  errs.push('xr-cold: ' + e.message);
+}
+
+console.log('xrNote', JSON.stringify(xrNote));
 await browser.close();
 process.exit(errs.some((e) => e.startsWith('wait ')) ? 1 : 0);
