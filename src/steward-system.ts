@@ -8,12 +8,12 @@ import {
   saveConnectors, type ConnectorId, type ConnectorState,
 } from './connectors.js';
 import { demoPlan } from './demo-steward.js';
-import { Label, panel, text } from './label.js';
+import { Label, panel, para, text } from './label.js';
 import { captureKeyFromUrl, chatWithTools, hasLiveKey } from './llm.js';
 import { PaneManager } from './panes.js';
 import { bindGaze, bindGazeHold, HOLD_MS, tabIcon } from './pointers.js';
 import { IS_DEMO, loadA11y, loadStats, saveA11y, saveStats, type A11yPrefs, type SessionStats } from './state.js';
-import { isMuted, sfxClick, sfxWhoosh, toggleMuted } from './sfx.js';
+import { isMuted, sfxClick, sfxCorrect, sfxWhoosh, sfxWrong, toggleMuted } from './sfx.js';
 import { applyContrast, C } from './style.js';
 import type { PaneSnap, ToolBatch, ToolCall } from './tools.js';
 import { paneCaption } from './titles.js';
@@ -31,9 +31,9 @@ function shortenStatus(s: string): string {
   if (/^Break ·/.test(s)) return 'Break · 60s, tabs back';
   if (/^Break quiz/.test(s)) return 'Break quiz · pick one';
   if (/^Video Call/.test(s)) return 'Video Call a Friend';
-  if (/^Back to work/.test(s)) return s.replace('Back to work:', 'Back:');
-  if (/^Steering tabs/.test(s) || /^Steer:/.test(s)) return s.length > 28 ? s.slice(0, 28) : s;
-  if (s.length > 28) return s.slice(0, 28);
+  if (/^Back to work/.test(s)) return s;
+  if (/^Steering tabs/.test(s) || /^Steer:/.test(s)) return s.length > 32 ? s.slice(0, 32) : s;
+  if (s.length > 36) return s.slice(0, 36);
   return s;
 }
 
@@ -258,11 +258,11 @@ export class StewardSystem extends createSystem({
       const thinking = this.quiz.friendThinking;
       this.quiz.tickFriend();
       if (thinking && !this.quiz.friendThinking) this.paintQuiz();
-      if (this.quiz.sessionOver()) this.finishBreak();
+      if (this.quiz.sessionOver()) this.showEndCard();
       else if (this.quiz.questionOver()) {
         const r = this.quiz.miss();
         this.setStatus(r.done ? 'Break · time up' : 'Time up · next question');
-        if (r.done) this.finishBreak();
+        if (r.done) this.showEndCard();
         else this.paintQuiz();
       } else {
         this.paintQuizMeta();
@@ -276,7 +276,7 @@ export class StewardSystem extends createSystem({
   }
 
   private buildWorldBtns(): void {
-    this.xrStatus = this.makeWorldBtn('xr-status', 'Ready', [0.92, 1.58, -0.95], () => {}, { w: 0.30, h: 0.10 });
+    this.xrStatus = this.makeWorldBtn('xr-status', 'Ready', [0.92, 1.62, -0.95], () => {}, { w: 0.38, h: 0.16 });
     this.keepBtn = this.makeWorldBtn('keep', 'Keep all', [0.92, 1.00, -0.95], () => this.keep(), { twin: '#btn-keep', w: 0.30, h: 0.09 });
     this.undoBtn = this.makeWorldBtn('undo', 'Undo last', [0.92, 0.88, -0.95], () => this.undo(), { twin: '#btn-undo', w: 0.30, h: 0.09 });
     this.startBtn = this.makeWorldBtn('start', 'Start', [0, 1.24, -0.78], () => this.beginOnboarding(), {
@@ -356,13 +356,23 @@ export class StewardSystem extends createSystem({
 
   private drawWorldBtn(b: WorldBtn): void {
     const accent = b.gazed && !b.dimmed ? C.accent : undefined;
+    const ink = b.dimmed ? C.mute : C.ink;
     b.label.draw((g, W, H) => {
       panel(g, W, H, b.gazed && !b.dimmed ? C.glassHi : C.pane, accent);
+      if (b.kind === 'xr-status') {
+        para(g, b.title, 28, 28, 26, W - 56, ink, 700, 2);
+        return;
+      }
+      if (b.kind.startsWith('quiz-life-')) {
+        drawLifeIcon(g, b.kind.replace('quiz-life-', ''), 40, H / 2, 36, ink);
+        text(g, b.title, W / 2 + 18, H / 2, Math.round(H * 0.32), ink, 700, W - 90, 'center');
+        return;
+      }
       if (b.subtitle) {
-        text(g, b.title, W / 2, H * 0.38, Math.round(H * 0.28), b.dimmed ? C.mute : C.ink, 700, W - 36, 'center');
+        text(g, b.title, W / 2, H * 0.38, Math.round(H * 0.28), ink, 700, W - 36, 'center');
         text(g, b.subtitle, W / 2, H * 0.68, Math.round(H * 0.22), C.mute, 500, W - 36, 'center');
       } else {
-        text(g, b.title, W / 2, H / 2, Math.round(H * 0.36), b.dimmed ? C.mute : C.ink, 700, W - 36, 'center');
+        text(g, b.title, W / 2, H / 2, Math.round(H * 0.36), ink, 700, W - 36, 'center');
       }
     });
   }
@@ -415,6 +425,12 @@ export class StewardSystem extends createSystem({
       bindGaze(quizBegin);
       quizBegin.onclick = () => this.beginBreak();
     }
+    const quizBack = document.getElementById('quiz-back') as HTMLButtonElement | null;
+    if (quizBack) {
+      bindGaze(quizBack);
+      quizBack.onclick = () => this.finishBreak();
+    }
+    hideStrayEnterXr();
     document.querySelectorAll<HTMLButtonElement>('#quiz-lives [data-life]').forEach((b) => {
       bindGaze(b);
       b.onclick = () => this.useQuizLife((b.dataset.life || '') as LifelineId);
@@ -1150,9 +1166,18 @@ export class StewardSystem extends createSystem({
     this.paintQuiz();
   }
 
-  finishBreak(): void {
+  showEndCard(): void {
     if (this.quiz.phase === 'off') return;
     this.quiz.end();
+    this.setQuizWorldVis(false);
+    this.setVis(this.quizPanel, true);
+    this.paintQuiz();
+    this.setStatus(`Break over · ${this.quiz.score} pts`);
+  }
+
+  finishBreak(): void {
+    if (this.quiz.phase === 'off') return;
+    if (this.quiz.phase !== 'end') this.quiz.end();
     const n = this.workPause?.length ?? this.quiz.pausedTabs;
     this.panes.root.visible = true;
     if (this.workPause) {
@@ -1161,6 +1186,7 @@ export class StewardSystem extends createSystem({
     }
     this.setQuizWorldVis(false);
     this.refreshKeepUndo();
+    this.quiz.phase = 'off';
     this.paintQuiz();
     this.setStatus(`Back to work: ${n} tabs restored.`);
     this.setSpeech(`Back to work: ${n} tabs restored.`);
@@ -1169,17 +1195,50 @@ export class StewardSystem extends createSystem({
   answerQuiz(i: number): void {
     const r = this.quiz.answer(i);
     if (!r) return;
-    this.setStatus(r.correct ? `Correct · Lv ${this.quiz.level}` : 'Not this time');
-    if (r.done) this.finishBreak();
-    else this.paintQuiz();
+    document.querySelectorAll<HTMLButtonElement>('#quiz-choices button').forEach((b, n) => {
+      b.classList.toggle('ans-ok', r.correct && n === i);
+      b.classList.toggle('ans-bad', !r.correct && n === i);
+    });
+    this.showQuizFeedback(r);
+    this.setStatus(r.correct ? `Correct · Lv ${this.quiz.level}` : 'Wrong');
+    window.setTimeout(() => {
+      if (r.done || this.quiz.phase === 'end') this.showEndCard();
+      else this.paintQuiz();
+    }, 850);
   }
 
   useQuizLife(id: LifelineId): void {
     const msg = this.quiz.useLifeline(id);
     if (!msg) return;
-    this.setStatus(id === 'friend' ? 'Video Call a Friend' : msg.slice(0, 28));
-    if (this.quiz.phase === 'end') this.finishBreak();
+    this.setStatus(id === 'friend' ? 'Video Call a Friend' : msg.slice(0, 32));
+    if (this.quiz.phase === 'end') this.showEndCard();
     else this.paintQuiz();
+  }
+
+  private showQuizFeedback(r: { correct: boolean; points: number; leveled: boolean; newLevel: number }): void {
+    if (r.correct) sfxCorrect();
+    else sfxWrong();
+    const fb = document.getElementById('quiz-feedback');
+    const mark = fb?.querySelector('.quiz-mark');
+    const word = fb?.querySelector('.quiz-word');
+    const pop = document.getElementById('quiz-points-pop');
+    const chip = document.getElementById('quiz-level-chip');
+    if (fb) {
+      fb.hidden = false;
+      fb.classList.toggle('ok', r.correct);
+      fb.classList.toggle('bad', !r.correct);
+    }
+    if (mark) mark.textContent = r.correct ? '✓' : '✗';
+    if (word) word.textContent = r.correct ? 'Correct' : 'Wrong';
+    if (pop) pop.textContent = r.correct && r.points ? `+${r.points}` : '';
+    if (chip) {
+      chip.hidden = !r.leveled;
+      chip.textContent = r.leveled ? `Level ${r.newLevel}!` : '';
+    }
+    const box = document.getElementById('quiz-choices');
+    const chosen = box?.querySelectorAll('button');
+    // flashed in paint just before timeout by class on last clicked; handled by caller via event
+    void chosen;
   }
 
   private setQuizWorldVis(on: boolean): void {
@@ -1206,9 +1265,19 @@ export class StewardSystem extends createSystem({
 
   private paintQuizMeta(): void {
     const meta = document.getElementById('quiz-meta');
-    if (!meta || this.quiz.phase !== 'question') return;
-    const sec = Math.ceil(this.quiz.sessionLeft() / 1000);
-    meta.textContent = `Lv ${this.quiz.level} · ${sec}s · ${this.quiz.score} pts · streak ${this.quiz.streak}`;
+    if (this.quiz.phase !== 'question') return;
+    const left = this.quiz.sessionLeft();
+    const sec = Math.ceil(left / 1000);
+    const frac = Math.max(0, Math.min(1, left / this.quiz.sessionMs));
+    if (meta) meta.textContent = `Lv ${this.quiz.level} · ${this.quiz.score} pts · streak ${this.quiz.streak}`;
+    const num = document.getElementById('quiz-timer-num');
+    if (num) num.textContent = String(sec);
+    const ring = document.getElementById('quiz-ring') as unknown as SVGCircleElement | null;
+    if (ring) ring.style.strokeDashoffset = String(100 - frac * 100);
+    const wrap = document.getElementById('quiz-timer');
+    if (wrap) wrap.classList.toggle('amber', sec <= 10);
+    const timer = document.getElementById('quiz-timer');
+    if (timer) timer.setAttribute('aria-label', `${sec} seconds left`);
     if (this.quizPanel && this.quiz.phase === 'question') {
       const q = this.quiz.current();
       this.quizPanel.title = q ? q.prompt : 'Break quiz';
@@ -1246,9 +1315,13 @@ export class StewardSystem extends createSystem({
           box.append(b);
         });
       }
+      const fb = document.getElementById('quiz-feedback');
+      if (fb) fb.hidden = true;
       document.querySelectorAll<HTMLButtonElement>('#quiz-lives [data-life]').forEach((b) => {
         const id = (b.dataset.life || '') as LifelineId;
-        b.disabled = !!this.quiz.used[id];
+        const used = !!this.quiz.used[id];
+        b.disabled = used;
+        b.classList.toggle('used', used);
       });
       const help = document.getElementById('quiz-help');
       if (help) {
@@ -1259,7 +1332,7 @@ export class StewardSystem extends createSystem({
       const fs = document.getElementById('quiz-friend-status');
       const fp = document.getElementById('quiz-friend-pick');
       if (friend) friend.hidden = !(this.quiz.friendThinking || this.quiz.friendReveal);
-      if (fs) fs.textContent = this.quiz.friendThinking ? 'Thinking…' : (this.quiz.friendReveal ? 'Practice friend · offline pick' : '');
+      if (fs) fs.textContent = this.quiz.friendThinking ? 'Thinking…' : '';
       if (fp) fp.textContent = this.quiz.friendReveal;
       this.quizAnswers.forEach((b, i) => {
         if (q) {
@@ -1280,18 +1353,25 @@ export class StewardSystem extends createSystem({
       this.drawWorldBtn(this.quizPanel);
       this.setVis(this.quizPanel, true);
       const friendOn = !!(this.quiz.friendThinking || this.quiz.friendReveal);
-      this.quizFriendBtn.title = 'Practice friend';
-      this.quizFriendBtn.subtitle = this.quiz.friendReveal || (this.quiz.friendThinking ? 'Thinking…' : 'offline pick');
+      this.quizFriendBtn.title = 'Practice friend · offline pick';
+      this.quizFriendBtn.subtitle = this.quiz.friendReveal || (this.quiz.friendThinking ? 'Thinking…' : '');
       this.drawWorldBtn(this.quizFriendBtn);
       this.setVis(this.quizFriendBtn, friendOn);
     }
     if (this.quiz.phase === 'end') {
+      const pts = document.getElementById('quiz-end-points');
+      if (pts) pts.textContent = String(this.quiz.score);
       const score = document.getElementById('quiz-end-score');
-      if (score) score.textContent = `${this.quiz.score} pts · level ${this.quiz.level} · ${this.quiz.history.length} played. Back to work: ${this.quiz.pausedTabs} tabs restored.`;
+      if (score) score.textContent = 'points';
+      const meta = document.getElementById('quiz-end-meta');
+      if (meta) meta.textContent = `Level ${this.quiz.level} · best streak ${this.quiz.bestStreak} · ${this.quiz.history.length} played`;
       const facts = document.getElementById('quiz-facts');
       if (facts) {
-        facts.innerHTML = this.quiz.history.map((h) => `<p>Did you know: ${h.q.fact}</p>`).join('') || '<p>No questions played.</p>';
+        const picked = this.quiz.history.slice(-3);
+        facts.innerHTML = picked.map((h) => `<p>Did you know: ${h.q.fact}</p>`).join('') || '<p>No questions played.</p>';
       }
+      const back = document.getElementById('quiz-end-backline');
+      if (back) back.textContent = `Back to work: ${this.quiz.pausedTabs} tabs restored.`;
     }
     if (this.quiz.phase === 'start') {
       this.quizPanel.title = 'Break quiz';
@@ -1303,4 +1383,78 @@ export class StewardSystem extends createSystem({
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+function hideStrayEnterXr(): void {
+  document.querySelectorAll('button').forEach((b) => {
+    if (b.id !== 'btn-enter' && /^enter xr$/i.test((b.textContent || '').trim())) {
+      b.style.setProperty('display', 'none', 'important');
+    }
+  });
+}
+
+function drawLifeIcon(g: CanvasRenderingContext2D, id: string, x: number, y: number, s: number, color: string): void {
+  g.save();
+  g.translate(x, y);
+  g.strokeStyle = color;
+  g.fillStyle = color;
+  g.lineWidth = Math.max(4, s * 0.12);
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
+  const r = s / 2;
+  if (id === 'hint') {
+    g.beginPath();
+    g.arc(0, -r * 0.15, r * 0.55, Math.PI * 0.15, Math.PI * 0.85, true);
+    g.stroke();
+    g.beginPath();
+    g.moveTo(-r * 0.22, r * 0.45);
+    g.lineTo(r * 0.22, r * 0.45);
+    g.moveTo(-r * 0.14, r * 0.68);
+    g.lineTo(r * 0.14, r * 0.68);
+    g.stroke();
+  } else if (id === 'expert') {
+    g.beginPath();
+    g.moveTo(-r, 0);
+    g.lineTo(0, -r * 0.7);
+    g.lineTo(r, 0);
+    g.lineTo(0, r * 0.35);
+    g.closePath();
+    g.stroke();
+    g.beginPath();
+    g.moveTo(-r * 0.55, r * 0.15);
+    g.lineTo(-r * 0.55, r * 0.55);
+    g.quadraticCurveTo(0, r * 0.9, r * 0.55, r * 0.55);
+    g.lineTo(r * 0.55, r * 0.15);
+    g.stroke();
+  } else if (id === 'fifty') {
+    g.font = `700 ${Math.round(s * 0.55)}px ${g.font.split(' ').slice(-1)[0] || 'sans-serif'}`;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText('1/2', 0, 0);
+  } else if (id === 'star') {
+    g.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + i * (Math.PI * 2 / 5);
+      const ox = Math.cos(a) * r * 0.75;
+      const oy = Math.sin(a) * r * 0.75;
+      if (i === 0) g.moveTo(ox, oy);
+      else g.lineTo(ox, oy);
+      const b = a + Math.PI / 5;
+      g.lineTo(Math.cos(b) * r * 0.32, Math.sin(b) * r * 0.32);
+    }
+    g.closePath();
+    g.stroke();
+  } else {
+    g.beginPath();
+    g.roundRect(-r * 0.75, -r * 0.4, r * 0.95, r * 0.8, 8);
+    g.stroke();
+    g.beginPath();
+    g.moveTo(r * 0.28, -r * 0.15);
+    g.lineTo(r * 0.75, -r * 0.4);
+    g.lineTo(r * 0.75, r * 0.4);
+    g.lineTo(r * 0.28, r * 0.15);
+    g.closePath();
+    g.stroke();
+  }
+  g.restore();
 }

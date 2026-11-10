@@ -71,3 +71,41 @@ export function sfxWhoosh(): void {
   g.connect(c.destination);
   src.start();
 }
+
+/** Soft rising pair of tones — correct answer (not a fanfare). */
+export function sfxCorrect(): void {
+  const c = ac();
+  if (!c) return;
+  const beep = (freq: number, at: number, dur: number): void => {
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(freq, c.currentTime + at);
+    g.gain.setValueAtTime(0.0001, c.currentTime + at);
+    g.gain.exponentialRampToValueAtTime(0.045, c.currentTime + at + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + at + dur);
+    o.connect(g);
+    g.connect(c.destination);
+    o.start(c.currentTime + at);
+    o.stop(c.currentTime + at + dur + 0.02);
+  };
+  beep(520, 0, 0.09);
+  beep(660, 0.1, 0.1);
+}
+
+/** Soft low tap — wrong answer. */
+export function sfxWrong(): void {
+  const c = ac();
+  if (!c) return;
+  const o = c.createOscillator();
+  const g = c.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(196, c.currentTime);
+  o.frequency.exponentialRampToValueAtTime(160, c.currentTime + 0.1);
+  g.gain.setValueAtTime(0.04, c.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.12);
+  o.connect(g);
+  g.connect(c.destination);
+  o.start();
+  o.stop(c.currentTime + 0.13);
+}

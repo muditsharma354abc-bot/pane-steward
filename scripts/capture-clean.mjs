@@ -210,10 +210,36 @@ try {
   await page.waitForTimeout(10500);
   await cleanChrome();
   await shot('quiz-friend.png');
-  await page.evaluate(() => { window.__ps?.finishBreak?.(); });
-  await page.waitForTimeout(400);
+
+  const clickCorrect = async () => page.evaluate(() => {
+    const q = window.__ps?.quiz?.current?.();
+    if (!q) return false;
+    const btns = [...document.querySelectorAll('#quiz-choices button')];
+    const b = btns[q.answer];
+    if (b) b.click();
+    return true;
+  });
+  await clickCorrect();
+  await page.waitForTimeout(280);
+  await cleanChrome();
+  await shot('quiz-feedback.png');
+  await shot('quiz-levelup.png');
+  await page.waitForTimeout(700);
+  for (let i = 0; i < 12; i++) {
+    const ended = await page.evaluate(() => window.__ps?.quiz?.phase === 'end' || !!document.querySelector('#quiz-end:not([hidden])'));
+    if (ended) break;
+    await clickCorrect();
+    await page.waitForTimeout(920);
+  }
+  await page.waitForFunction(() => {
+    const end = document.getElementById('quiz-end');
+    return !!(end && !end.hidden);
+  }, { timeout: 75000 }).catch((e) => errs.push('quiz-end wait: ' + e.message));
+  await page.waitForTimeout(250);
   await cleanChrome();
   await shot('quiz-end.png');
+  await forceClick('#quiz-back');
+  await page.waitForTimeout(400);
 } catch (e) {
   errs.push('quiz2d: ' + e.message);
 }
@@ -410,11 +436,23 @@ try {
   await forceClick('#btn-enter');
   await page.waitForTimeout(3500);
   await hideHudForXr();
+  await page.waitForTimeout(700);
+  await hideHudForXr();
   await page.evaluate(() => {
     const q = document.getElementById('quiz-root');
     if (q) q.style.setProperty('display', 'none', 'important');
+    const hide = (root) => {
+      root.querySelectorAll('*').forEach((node) => {
+        if (node.shadowRoot) hide(node.shadowRoot);
+        const t = (node.textContent || '').replace(/\s+/g, ' ').trim();
+        if (t === 'Remote Control Active' || (t.includes('Remote Control Active') && t.length < 48)) {
+          node.style.setProperty('display', 'none', 'important');
+        }
+      });
+    };
+    hide(document);
   });
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(400);
   await shot('quiz-xr-question.png');
 } catch (e) {
   errs.push('quiz-xr: ' + e.message);

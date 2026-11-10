@@ -50,6 +50,7 @@ export class BreakQuiz {
   queue: QuizQuestion[] = [];
   idx = 0;
   pausedTabs = 0;
+  bestStreak = 0;
 
   current(): QuizQuestion | null {
     return this.queue[this.idx] ?? null;
@@ -72,6 +73,7 @@ export class BreakQuiz {
     this.friendReveal = '';
     this.queue = shuffle(QUIZ_PACK, daySeed());
     this.idx = 0;
+    this.bestStreak = 0;
   }
 
   begin(): void {
@@ -113,28 +115,33 @@ export class BreakQuiz {
     this.doubleNext = false;
   }
 
-  answer(i: number): { correct: boolean; done: boolean } | null {
+  answer(i: number): { correct: boolean; done: boolean; points: number; leveled: boolean; newLevel: number } | null {
     const q = this.current();
     if (!q || this.phase !== 'question' || this.hidden.has(i)) return null;
     const correct = i === q.answer;
     this.history.push({ q, correct });
+    let points = 0;
+    let leveled = false;
     if (correct) {
       this.streak += 1;
+      this.bestStreak = Math.max(this.bestStreak, this.streak);
       const mult = 1 + Math.max(0, this.streak - 1) * 0.25;
       const base = 100 * this.level;
-      this.score += Math.round(base * mult * (this.doubleNow ? 2 : 1));
+      points = Math.round(base * mult * (this.doubleNow ? 2 : 1));
+      this.score += points;
       this.level += 1;
+      leveled = true;
     } else {
       this.streak = 0;
     }
     this.doubleNow = false;
     this.idx += 1;
-    if (this.sessionLeft() <= 0 || this.idx >= this.queue.length) {
+    if (this.sessionLeft() <= 0) {
       this.phase = 'end';
-      return { correct, done: true };
+      return { correct, done: true, points, leveled, newLevel: this.level };
     }
     this.openQuestion();
-    return { correct, done: false };
+    return { correct, done: false, points, leveled, newLevel: this.level };
   }
 
   miss(): { done: boolean } {
@@ -143,7 +150,7 @@ export class BreakQuiz {
     this.streak = 0;
     this.doubleNow = false;
     this.idx += 1;
-    if (this.sessionLeft() <= 0 || this.idx >= this.queue.length) {
+    if (this.sessionLeft() <= 0) {
       this.phase = 'end';
       return { done: true };
     }
@@ -177,7 +184,7 @@ export class BreakQuiz {
       this.help = 'Skipped — next correct is worth double.';
       this.history.push({ q, correct: false });
       this.idx += 1;
-      if (this.sessionLeft() <= 0 || this.idx >= this.queue.length) {
+      if (this.sessionLeft() <= 0) {
         this.phase = 'end';
         return this.help;
       }
@@ -188,8 +195,8 @@ export class BreakQuiz {
       this.friendThinking = true;
       this.friendReveal = '';
       this.friendStartedAt = performance.now();
-      this.help = 'Video Call a Friend…';
-      return this.help;
+      this.help = '';
+      return 'friend';
     }
     return '';
   }
@@ -201,7 +208,6 @@ export class BreakQuiz {
     this.friendThinking = false;
     if (!q) return;
     this.friendReveal = `I'd pick “${q.choices[q.friendPick]}” — ${q.friendNote}`;
-    this.help = this.friendReveal;
   }
 
   end(): void {
