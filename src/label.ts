@@ -75,15 +75,43 @@ export function text(
 
 export function para(
   g: CanvasRenderingContext2D, s: string, x: number, y: number, size: number, maxW: number, color = C.ink, weight = 400,
+  maxLines = 99,
 ): number {
   g.font = `${weight} ${size}px ${FONT}`; g.fillStyle = color; g.textAlign = 'left'; g.textBaseline = 'top';
-  let line = '', yy = y;
-  for (const w of s.split(/\s+/)) {
-    if (g.measureText(`${line}${w} `).width > maxW && line) {
-      g.fillText(line, x, yy); yy += size * 1.35; line = '';
+  const lh = size * 1.28;
+  let yy = y;
+  let drawn = 0;
+  const stop = (): boolean => drawn >= maxLines;
+  const paint = (raw: string, last: boolean): boolean => {
+    let line = raw.replace(/\s+$/,'');
+    if (!last && drawn + 1 >= maxLines) {
+      while (g.measureText(`${line}…`).width > maxW && line.length > 1) line = line.slice(0, -1);
+      g.fillText(`${line}…`, x, yy);
+    } else {
+      g.fillText(line, x, yy);
     }
-    line += `${w} `;
+    yy += lh;
+    drawn += 1;
+    return !stop();
+  };
+  let line = '';
+  const tokens = (s || ' ').split(/\n/);
+  for (let pi = 0; pi < tokens.length; pi++) {
+    line = '';
+    const chunk = tokens[pi].split(/\s+/).filter(Boolean);
+    for (let i = 0; i < chunk.length; i++) {
+      const w = chunk[i];
+      if (g.measureText(`${line}${w} `).width > maxW && line) {
+        const more = i < chunk.length - 1 || pi < tokens.length - 1;
+        if (!paint(line, !more && i === chunk.length)) return yy;
+        line = '';
+      }
+      line += `${w} `;
+    }
+    if (line.trim()) {
+      const more = pi < tokens.length - 1;
+      if (!paint(line, !more)) return yy;
+    }
   }
-  if (line.trim()) { g.fillText(line, x, yy); yy += size * 1.35; }
   return yy;
 }

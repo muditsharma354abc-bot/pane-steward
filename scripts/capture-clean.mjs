@@ -106,6 +106,11 @@ await page.waitForTimeout(120);
 await forceClick('#chips [data-intent="prep"]');
 await page.waitForFunction(() => !document.getElementById('btn-keep')?.disabled, { timeout: 25000 }).catch((e) => errs.push('wait keep: ' + e.message));
 await page.waitForTimeout(1600);
+await page.evaluate(() => {
+  const b = document.getElementById('btn-more');
+  if (b && b.getAttribute('aria-expanded') === 'true') b.click();
+});
+await page.waitForTimeout(150);
 await cleanChrome();
 await shot('light-panes.png');
 
@@ -177,13 +182,43 @@ const hud = await page.evaluate(() => ({
 }));
 console.log(JSON.stringify({ hud, errs: errs.slice(0, 20) }, null, 2));
 
-const hideHudForXr = async () => {
-  await page.evaluate(() => {
+
+// 2D Break Quiz frames (tabs already open from the light flow)
+try {
+  await page.evaluate(() => { document.getElementById('quiz-root')?.style.removeProperty('display'); });
+  await forceClick('#btn-break');
+  await page.waitForSelector('#quiz-root:not([hidden])', { timeout: 8000 });
+  await page.waitForTimeout(300);
+  await cleanChrome();
+  await shot('quiz-start.png');
+  await forceClick('#quiz-begin');
+  await page.waitForSelector('#quiz-play:not([hidden])', { timeout: 5000 });
+  await page.waitForTimeout(300);
+  await cleanChrome();
+  await shot('quiz-question.png');
+  await cleanChrome();
+  await shot('quiz-lifelines.png');
+  await forceClick('#quiz-lives [data-life="friend"]');
+  await page.waitForTimeout(10500);
+  await cleanChrome();
+  await shot('quiz-friend.png');
+  await page.evaluate(() => { window.__ps?.finishBreak?.(); });
+  await page.waitForTimeout(400);
+  await cleanChrome();
+  await shot('quiz-end.png');
+} catch (e) {
+  errs.push('quiz2d: ' + e.message);
+}
+
+const hideHudForXr = async (keepHands = false) => {
+  await page.evaluate((keepHands) => {
     try {
       if (window.IWER_DEVICE) {
         window.IWER_DEVICE.controlMode = 'programmatic';
-        for (const side of ['left', 'right']) {
-          if (window.IWER_DEVICE.hands?.[side]) window.IWER_DEVICE.hands[side].connected = false;
+        if (!keepHands) {
+          for (const side of ['left', 'right']) {
+            if (window.IWER_DEVICE.hands?.[side]) window.IWER_DEVICE.hands[side].connected = false;
+          }
         }
       }
     } catch {}
@@ -200,7 +235,7 @@ const hideHudForXr = async () => {
     for (const el of document.querySelectorAll('body > div')) {
       if (el.shadowRoot) el.style.setProperty('display', 'none', 'important');
     }
-    for (const id of ['top-bar', 'tab-rail', 'pane-stage', 'chat-dock', 'cold-start', 'guide', 'opts-pop']) {
+    for (const id of ['top-bar', 'tab-rail', 'pane-stage', 'chat-dock', 'cold-start', 'guide', 'opts-pop', 'quiz-root']) {
       const el = document.getElementById(id);
       if (el) el.style.setProperty('display', 'none', 'important');
     }
@@ -210,7 +245,9 @@ const hideHudForXr = async () => {
       sc.style.display = 'block';
       sc.style.visibility = 'visible';
     }
-  });
+    const quiz = document.getElementById('quiz-root');
+    if (quiz) quiz.style.setProperty('display', 'none', 'important');
+  }, keepHands);
 };
 
 const xrNote = { entered: false, hovered: false, held: false, detail: '' };
@@ -256,7 +293,7 @@ try {
   });
   xrNote.detail = JSON.stringify(hover);
   xrNote.hovered = !!(hover && hover.gazed);
-  await hideHudForXr();
+  await hideHudForXr(true);
   await page.waitForTimeout(250);
   await shot('light-xr-gaze.png');
 
@@ -275,12 +312,16 @@ try {
     const R = d.hands.right;
     if (R.connected === false) R.connected = true;
     if (R.setPin) R.setPin({ anchor: 'index-tip', target: [pos.x + n.x * 0.04, pos.y + n.y * 0.04, pos.z + n.z * 0.04] });
+    target.selectHeld = true;
+    if (!target.pressAt) { target.pressAt = performance.now(); target.held = false; }
     if (R.updatePinchValue) R.updatePinchValue(1);
     await new Promise((r) => setTimeout(r, 750));
     const pop = document.getElementById('opts-pop');
-    const open = pop && !pop.hidden;
+    const worldOpen = !!target && (window.__ps?.optsPanel?.label?.mesh?.visible);
+    const open = (pop && !pop.hidden) || worldOpen;
     if (R.updatePinchValue) R.updatePinchValue(0);
-    return { ok: !!open, kind: target.kind };
+    target.selectHeld = false;
+    return { ok: !!open, kind: target.kind, worldOpen, popHidden: !!(pop && pop.hidden) };
   });
   xrNote.held = !!(held && held.ok);
   xrNote.detail += ' | hold ' + JSON.stringify(held);
@@ -292,6 +333,41 @@ try {
   }
   await page.waitForTimeout(200);
   await shot('light-xr-longhold.png');
+
+  const pinchDock = await page.evaluate(async () => {
+    const ps = window.__ps;
+    const d = window.IWER_DEVICE;
+    const list = [...(ps?.buttons?.values?.() || [])];
+    const report = {};
+    for (const kind of ['keep', 'undo', 'intent-next']) {
+      const b = list.find((x) => x.kind === kind);
+      report[kind] = { visible: !!b?.label?.mesh?.visible, dimmed: !!b?.dimmed };
+    }
+    const pinch = async (kind) => {
+      const b = list.find((x) => x.kind === kind);
+      if (!b?.label?.mesh?.visible) return { kind, ok: false, why: 'not visible' };
+      const kept = ps.stats?.kept;
+      const m = b.label.mesh;
+      m.updateMatrixWorld();
+      const V = m.position.constructor;
+      const pos = m.getWorldPosition(new V());
+      const R = d.hands.right;
+      if (R.connected === false) R.connected = true;
+      if (R.setPin) R.setPin({ anchor: 'index-tip', target: [pos.x, pos.y, pos.z + 0.05] });
+      b.selectHeld = true;
+      if (!b.pressAt) b.pressAt = performance.now();
+      if (R.updatePinchValue) R.updatePinchValue(1);
+      await new Promise((r) => setTimeout(r, 120));
+      b.selectHeld = false;
+      if (R.updatePinchValue) R.updatePinchValue(0);
+      await new Promise((r) => setTimeout(r, 350));
+      return { kind, ok: true, visible: true, keptBefore: kept, keptAfter: ps.stats?.kept };
+    };
+    report.pinchKeep = await pinch('keep');
+    report.pinchUndo = await pinch('undo');
+    return report;
+  });
+  xrNote.detail += ' | dock ' + JSON.stringify(pinchDock);
 } catch (e) {
   xrNote.detail = String(e);
   errs.push('xr: ' + e.message);
@@ -309,6 +385,31 @@ try {
   await shot('light-xr-cold-start.png');
 } catch (e) {
   errs.push('xr-cold: ' + e.message);
+}
+
+try {
+  await page.goto(U, { waitUntil: 'networkidle', timeout: 90000 });
+  await page.waitForSelector('#cold-start', { timeout: 30000 });
+  await forceClick('#btn-start');
+  await page.waitForTimeout(400);
+  await page.evaluate(() => { window.__ps?.showGuide?.(-1); document.getElementById('guide').hidden = true; });
+  await forceClick('#btn-more');
+  await forceClick('#chips [data-intent="prep"]');
+  await page.waitForTimeout(1600);
+  await forceClick('#btn-break');
+  await forceClick('#quiz-begin');
+  await page.waitForTimeout(400);
+  await forceClick('#btn-enter');
+  await page.waitForTimeout(3500);
+  await hideHudForXr();
+  await page.evaluate(() => {
+    const q = document.getElementById('quiz-root');
+    if (q) q.style.setProperty('display', 'none', 'important');
+  });
+  await page.waitForTimeout(600);
+  await shot('quiz-xr-question.png');
+} catch (e) {
+  errs.push('quiz-xr: ' + e.message);
 }
 
 console.log('xrNote', JSON.stringify(xrNote));

@@ -17,6 +17,21 @@ import { isMuted, sfxClick, sfxWhoosh, toggleMuted } from './sfx.js';
 import { applyContrast, C } from './style.js';
 import type { PaneSnap, ToolBatch, ToolCall } from './tools.js';
 import { paneCaption } from './titles.js';
+import { BreakQuiz } from './quiz.js';
+import type { LifelineId } from './quiz-pack.js';
+
+
+function shortenStatus(s: string): string {
+  if (/^Guide ·/.test(s)) return 'Guide · tab, Keep, Undo';
+  if (/^Kept all/.test(s)) return 'Kept all — ready';
+  if (/^Chat → Prep/.test(s)) return 'Chat → Prep → 3 panes';
+  if (/^Tour done/.test(s)) return 'Tour done · offline twin';
+  if (/^Demo Steward/.test(s)) return 'Demo Steward · offline';
+  if (/^Pending Keep/.test(s)) return s.replace('Pending Keep all', 'Pending Keep').replace('Pending Keep ·', 'Pending Keep ·');
+  if (/^Steering tabs/.test(s) || /^Steer:/.test(s)) return s.length > 28 ? `${s.slice(0, 26)}` : s;
+  if (s.length > 32) return s.slice(0, 32);
+  return s;
+}
 
 function el<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
@@ -59,6 +74,9 @@ type WorldBtn = {
   title: string;
   subtitle?: string;
   wantVisible: boolean;
+  dimmed?: boolean;
+  pressLostAt: number;
+  selectHeld: boolean;
 };
 
 const GUIDE = [
@@ -102,6 +120,14 @@ export class StewardSystem extends createSystem({
   private tabSeq = 0;
   private guideIdx = -1;
   private xrOn = false;
+  private quiz = new BreakQuiz();
+  private workPause: import('./tools.js').PaneSnap[] | null = null;
+  private xrStatus!: WorldBtn;
+  private quizPanel!: WorldBtn;
+  private quizAnswers: WorldBtn[] = [];
+  private quizLives: WorldBtn[] = [];
+  private quizFriendBtn!: WorldBtn;
+  private lastCommitted: import('./tools.js').PaneSnap[] | null = null;
 
   init(): void {
     captureKeyFromUrl();
@@ -125,7 +151,7 @@ export class StewardSystem extends createSystem({
     floor.position.y = 0.01;
     this.room.add(floor);
 
-    this.panes.onChange = () => this.syncTabUi();
+    this.panes.onChange = () => { this.syncTabUi(); this.refreshKeepUndo(); };
     this.buildWorldBtns();
     this.wireXrVis();
     this.markChromeWorldVisible();
@@ -135,8 +161,8 @@ export class StewardSystem extends createSystem({
     this.paintMute();
     this.syncTabUi();
     this.setStatus(hasLiveKey()
-      ? 'Live chat · ready — ask to open up to 3 tabs'
-      : 'Demo Steward · offline twin — no API key needed');
+      ? 'Live chat · ready'
+      : 'Demo Steward · offline');
     (window as unknown as { __ps: unknown }).__ps = this;
   }
 
@@ -159,6 +185,7 @@ export class StewardSystem extends createSystem({
     xr?.addEventListener?.('sessionstart', () => {
       this.xrOn = true;
       this.applyWorldVis();
+      this.bindXrSelect();
     });
     xr?.addEventListener?.('sessionend', () => {
       this.xrOn = false;
@@ -171,7 +198,8 @@ export class StewardSystem extends createSystem({
     for (const b of this.buttons.values()) {
       if (
         b.kind === 'start' || b.kind === 'add' ||
-        b.kind.startsWith('conn-') || b.kind === 'intent-next'
+        b.kind === 'keep' || b.kind === 'undo' || b.kind === 'xr-status' ||
+        b.kind.startsWith('conn-')
       ) b.wantVisible = true;
     }
   }
@@ -191,6 +219,7 @@ export class StewardSystem extends createSystem({
   }
 
   private pollWorld(): void {
+    const now = performance.now();
     for (const b of this.buttons.values()) {
       const hovered = b.entity.hasComponent(Hovered);
       if (hovered !== b.gazed) {
@@ -198,17 +227,41 @@ export class StewardSystem extends createSystem({
         this.drawWorldBtn(b);
         this.syncTwinGaze(b.twin, hovered);
       }
-      const pressed = b.entity.hasComponent(Pressed);
+      const pressed = b.entity.hasComponent(Pressed) || b.selectHeld;
       if (pressed) {
-        if (!b.pressAt) b.pressAt = performance.now();
-        if (b.hold && !b.held && performance.now() - b.pressAt >= HOLD_MS) {
+        if (!b.pressAt) { b.pressAt = now; b.held = false; }
+        b.pressLostAt = 0;
+        if (b.hold && !b.held && now - b.pressAt >= HOLD_MS) {
           b.held = true;
           b.hold();
         }
       } else if (b.pressAt) {
+        if (!b.pressLostAt) b.pressLostAt = now;
+        if (now - b.pressLostAt < 200) {
+          if (b.hold && !b.held && now - b.pressAt >= HOLD_MS) {
+            b.held = true;
+            b.hold();
+          }
+          continue;
+        }
         if (!b.held) b.action();
         b.pressAt = 0;
+        b.pressLostAt = 0;
         b.held = false;
+      }
+    }
+    if (this.quiz.phase === 'question') {
+      const thinking = this.quiz.friendThinking;
+      this.quiz.tickFriend();
+      if (thinking && !this.quiz.friendThinking) this.paintQuiz();
+      if (this.quiz.sessionOver()) this.finishBreak();
+      else if (this.quiz.questionOver()) {
+        const r = this.quiz.miss();
+        this.setStatus(r.done ? 'Break · time up' : 'Time up · next question');
+        if (r.done) this.finishBreak();
+        else this.paintQuiz();
+      } else {
+        this.paintQuizMeta();
       }
     }
   }
@@ -219,6 +272,7 @@ export class StewardSystem extends createSystem({
   }
 
   private buildWorldBtns(): void {
+    this.xrStatus = this.makeWorldBtn('xr-status', 'Ready', [0.92, 1.58, -0.95], () => {}, { w: 0.30, h: 0.10 });
     this.keepBtn = this.makeWorldBtn('keep', 'Keep all', [0.92, 1.00, -0.95], () => this.keep(), { twin: '#btn-keep', w: 0.30, h: 0.09 });
     this.undoBtn = this.makeWorldBtn('undo', 'Undo last', [0.92, 0.88, -0.95], () => this.undo(), { twin: '#btn-undo', w: 0.30, h: 0.09 });
     this.startBtn = this.makeWorldBtn('start', 'Start', [0, 1.24, -0.78], () => this.beginOnboarding(), {
@@ -267,20 +321,8 @@ export class StewardSystem extends createSystem({
         w: 0.30, h: 0.09,
       });
     });
-    const intents: [string, string, string][] = [
-      ['prep', 'Prep', 'Prep call'],
-      ['park', 'Park', 'Park this'],
-      ['next', 'Next', "What's next"],
-      ['web', 'Web', 'Lookup https://example.com'],
-    ];
-    intents.forEach(([key, title, text]) => {
-      const pos: [number, number, number] = key === 'next' ? [0.92, 0.76, -0.95] : [0, -2, -0.95];
-      this.makeWorldBtn(`intent-${key}`, title, pos, () => void this.handleIntent(text), {
-        twin: `#chips [data-intent="${key}"]`,
-        w: 0.30, h: 0.09,
-      });
-    });
-    this.setWorldBtnActive(false);
+    this.buildQuizWorld();
+    this.refreshKeepUndo();
   }
 
   private makeWorldBtn(
@@ -297,7 +339,7 @@ export class StewardSystem extends createSystem({
     label.mesh.position.set(pos[0], pos[1], pos[2]);
     const b: WorldBtn = {
       label, entity, action, hold: extra?.hold, kind,
-      pressAt: 0, held: false, gazed: false, wantVisible: false,
+      pressAt: 0, pressLostAt: 0, selectHeld: false, held: false, gazed: false, wantVisible: false,
       twin: extra?.twin ?? '', title,
     };
     this.buttons.set(entity.index, b);
@@ -309,14 +351,14 @@ export class StewardSystem extends createSystem({
   }
 
   private drawWorldBtn(b: WorldBtn): void {
-    const accent = b.gazed ? C.accent : undefined;
+    const accent = b.gazed && !b.dimmed ? C.accent : undefined;
     b.label.draw((g, W, H) => {
-      panel(g, W, H, b.gazed ? C.glassHi : C.pane, accent);
+      panel(g, W, H, b.gazed && !b.dimmed ? C.glassHi : C.pane, accent);
       if (b.subtitle) {
-        text(g, b.title, W / 2, H * 0.38, Math.round(H * 0.28), C.ink, 700, W - 36, 'center');
+        text(g, b.title, W / 2, H * 0.38, Math.round(H * 0.28), b.dimmed ? C.mute : C.ink, 700, W - 36, 'center');
         text(g, b.subtitle, W / 2, H * 0.68, Math.round(H * 0.22), C.mute, 500, W - 36, 'center');
       } else {
-        text(g, b.title, W / 2, H / 2, Math.round(H * 0.36), C.ink, 700, W - 36, 'center');
+        text(g, b.title, W / 2, H / 2, Math.round(H * 0.36), b.dimmed ? C.mute : C.ink, 700, W - 36, 'center');
       }
     });
   }
@@ -359,6 +401,20 @@ export class StewardSystem extends createSystem({
     el<HTMLButtonElement>('btn-guide-next').onclick = () => this.advanceGuide();
     el<HTMLButtonElement>('btn-mute').onclick = () => this.toggleMute();
     el<HTMLButtonElement>('btn-options').onclick = () => this.openOptions({ kind: 'generic' });
+    const breakBtn = document.getElementById('btn-break') as HTMLButtonElement | null;
+    if (breakBtn) {
+      bindGaze(breakBtn);
+      breakBtn.onclick = () => this.enterBreak();
+    }
+    const quizBegin = document.getElementById('quiz-begin') as HTMLButtonElement | null;
+    if (quizBegin) {
+      bindGaze(quizBegin);
+      quizBegin.onclick = () => this.beginBreak();
+    }
+    document.querySelectorAll<HTMLButtonElement>('#quiz-lives [data-life]').forEach((b) => {
+      bindGaze(b);
+      b.onclick = () => this.useQuizLife((b.dataset.life || '') as LifelineId);
+    });
     const moreBtn = document.getElementById('btn-more') as HTMLButtonElement | null;
     if (moreBtn) {
       bindGaze(moreBtn);
@@ -418,7 +474,7 @@ export class StewardSystem extends createSystem({
     document.body.classList.remove('onboarding');
     this.setVis(this.startBtn, false);
     this.showGuide(0);
-    this.setStatus('Guide · open a tab, then Keep all, then Undo last');
+    this.setStatus('Guide · tab, Keep, Undo');
   }
 
   private showGuide(i: number): void {
@@ -650,9 +706,12 @@ export class StewardSystem extends createSystem({
       this.setStatus('You already have 3 tabs — close one with × to add another.');
       return;
     }
+    const before = this.panes.snapshot();
     this.tabSeq += 1;
     const id = `tab-${this.tabSeq}`;
     this.panes.open(id, `Tab ${this.tabSeq}`, 'Empty tab — chat to fill.');
+    this.pending = { id: `b-${Date.now()}`, speech: '', reason: '', calls: [], before };
+    this.setPendingUi(true);
     this.setStatus(`Added Tab ${this.tabSeq}`);
   }
 
@@ -685,8 +744,13 @@ export class StewardSystem extends createSystem({
   }
 
   private setStatus(s: string): void {
+    const short = shortenStatus(s);
     const node = el<HTMLDivElement>('status-line');
-    if (node) node.textContent = s;
+    if (node) node.textContent = short;
+    if (this.xrStatus) {
+      this.xrStatus.title = short;
+      this.drawWorldBtn(this.xrStatus);
+    }
   }
 
   private paintSession(): void {
@@ -705,12 +769,29 @@ export class StewardSystem extends createSystem({
     el<HTMLDivElement>('reason').textContent = s ? s : '';
   }
 
-  private setPendingUi(on: boolean): void {
-    el<HTMLButtonElement>('btn-keep').disabled = !on;
-    const canUndo = on || !!this.lastKeepBefore;
-    el<HTMLButtonElement>('btn-undo').disabled = !canUndo;
-    this.setVis(this.keepBtn, on);
-    this.setVis(this.undoBtn, canUndo);
+  private setPendingUi(_on: boolean): void {
+    this.refreshKeepUndo();
+  }
+
+  private refreshKeepUndo(): void {
+    const canKeep = !!this.pending || this.panes.listed().length > 0;
+    const canUndo = !!this.pending || !!this.lastKeepBefore;
+    const keepEl = document.getElementById('btn-keep') as HTMLButtonElement | null;
+    const undoEl = document.getElementById('btn-undo') as HTMLButtonElement | null;
+    if (keepEl) keepEl.disabled = !canKeep;
+    if (undoEl) undoEl.disabled = !canUndo;
+    if (this.keepBtn) {
+      this.keepBtn.dimmed = !canKeep;
+      this.keepBtn.wantVisible = true;
+      this.keepBtn.label.mesh.visible = !!this.xrOn;
+      this.drawWorldBtn(this.keepBtn);
+    }
+    if (this.undoBtn) {
+      this.undoBtn.dimmed = !canUndo;
+      this.undoBtn.wantVisible = true;
+      this.undoBtn.label.mesh.visible = !!this.xrOn;
+      this.drawWorldBtn(this.undoBtn);
+    }
   }
 
   private async onUserText(): Promise<void> {
@@ -726,7 +807,7 @@ export class StewardSystem extends createSystem({
     this.busy = true;
     this.lastIntent = text;
     this.refreshModeChip();
-    this.setStatus(`Steering tabs… “${text.slice(0, 36)}${text.length > 36 ? '…' : ''}”`);
+    this.setStatus(`Steer: ${text.slice(0, 18)}`);
     this.setSpeech('Working…');
     this.setReason('');
     try {
@@ -783,7 +864,6 @@ export class StewardSystem extends createSystem({
       await sleep(200);
     }
     this.pending = batch;
-    this.lastKeepBefore = null;
     this.stats.did += 1;
     this.paintSession();
     this.setPendingUi(true);
@@ -903,12 +983,19 @@ export class StewardSystem extends createSystem({
   }
 
   keep(): void {
-    if (!this.pending) return;
+    const hasPanes = this.panes.listed().length > 0;
+    if (!this.pending && !hasPanes) return;
     sfxClick();
-    this.lastKeepBefore = this.pending.before;
+    const current = this.panes.snapshot();
+    if (this.pending) {
+      this.lastKeepBefore = this.pending.before;
+      this.pending = null;
+    } else {
+      this.lastKeepBefore = this.lastCommitted ?? [];
+    }
+    this.lastCommitted = current;
     this.stats.kept += 1;
     this.paintSession();
-    this.pending = null;
     this.setPendingUi(false);
     this.panes.pulseKeepFocus(700);
     const stage = el<HTMLElement>('pane-stage');
@@ -916,7 +1003,7 @@ export class StewardSystem extends createSystem({
     setTimeout(() => stage.classList.remove('dimmed', 'kept'), 700);
     this.setSpeech('Kept all. Ready for the next ask.');
     this.setReason('');
-    this.setStatus('Kept all — ready for the next ask');
+    this.setStatus('Kept all — ready');
   }
 
   undo(): void {
@@ -995,9 +1082,218 @@ export class StewardSystem extends createSystem({
     }
     await sleep(500);
     this.setSpeech('Tour done — chat dock, tabs, Connectors. No characters.');
-    this.setStatus(
-      `Tour done · Kept ${this.stats.kept} · Undid ${this.undidCount} · Demo Steward · offline`,
-    );
+    this.setStatus('Tour done · offline twin');
+    this.refreshKeepUndo();
+  }
+
+  private bindXrSelect(): void {
+    const xr = (this.world as unknown as { renderer?: { xr?: { getSession?: () => { addEventListener: (e: string, fn: () => void) => void } | null } } }).renderer?.xr;
+    const session = xr?.getSession?.();
+    if (!session) return;
+    session.addEventListener('selectstart', () => {
+      for (const b of this.buttons.values()) {
+        if (b.gazed || b.entity.hasComponent(Hovered)) {
+          b.selectHeld = true;
+          if (!b.pressAt) { b.pressAt = performance.now(); b.held = false; }
+        }
+      }
+    });
+    session.addEventListener('selectend', () => {
+      for (const b of this.buttons.values()) b.selectHeld = false;
+    });
+  }
+
+  private buildQuizWorld(): void {
+    this.quizPanel = this.makeWorldBtn('quiz-panel', 'Break quiz', [0, 1.40, -1.12], () => {}, { w: 0.78, h: 0.30 });
+    this.setVis(this.quizPanel, false);
+    const spots: [number, number, number][] = [
+      [-0.38, 1.10, -1.12], [0.38, 1.10, -1.12],
+      [-0.38, 0.92, -1.12], [0.38, 0.92, -1.12],
+    ];
+    spots.forEach((pos, i) => {
+      const b = this.makeWorldBtn(`quiz-ans-${i}`, `Option ${i + 1}`, pos, () => this.answerQuiz(i), { w: 0.36, h: 0.14 });
+      this.setVis(b, false);
+      this.quizAnswers.push(b);
+    });
+    const lives: LifelineId[] = ['hint', 'expert', 'fifty', 'star', 'friend'];
+    const labels = ['Hint', 'Expert', '50:50', 'Star', 'Call friend'];
+    lives.forEach((id, i) => {
+      const b = this.makeWorldBtn(`quiz-life-${id}`, labels[i], [0.92, 1.46 - i * 0.10, -0.95], () => this.useQuizLife(id), { w: 0.30, h: 0.09 });
+      this.setVis(b, false);
+      this.quizLives.push(b);
+    });
+    this.quizFriendBtn = this.makeWorldBtn('quiz-friend', 'Practice friend', [0, 1.16, -0.78], () => {}, { w: 0.52, h: 0.20 });
+    this.setVis(this.quizFriendBtn, false);
+  }
+
+  enterBreak(): void {
+    if (this.quiz.phase !== 'off' && this.quiz.phase !== 'end') return;
+    this.workPause = this.panes.snapshot();
+    this.quiz.pausedTabs = this.workPause.length;
+    this.quiz.reset();
+    this.panes.root.visible = false;
+    for (const b of this.tabWorld) this.setVis(b, false);
+    this.setQuizWorldVis(true);
+    this.paintQuiz();
+    this.setStatus('Break · 60s, then tabs return');
+    this.setSpeech('Take a 60-second brain break, then Pane Steward puts your tabs back exactly where you left them.');
+  }
+
+  beginBreak(): void {
+    if (this.quiz.phase !== 'start') return;
+    this.quiz.begin();
+    this.setStatus('Break quiz · pick an answer');
+    this.paintQuiz();
+  }
+
+  finishBreak(): void {
+    if (this.quiz.phase === 'off') return;
+    this.quiz.end();
+    const n = this.workPause?.length ?? this.quiz.pausedTabs;
+    this.panes.root.visible = true;
+    if (this.workPause) {
+      this.panes.restore(this.workPause);
+      this.workPause = null;
+    }
+    this.setQuizWorldVis(false);
+    this.refreshKeepUndo();
+    this.paintQuiz();
+    this.setStatus(`Back to work: ${n} tabs restored.`);
+    this.setSpeech(`Back to work: ${n} tabs restored.`);
+  }
+
+  answerQuiz(i: number): void {
+    const r = this.quiz.answer(i);
+    if (!r) return;
+    this.setStatus(r.correct ? `Correct · Lv ${this.quiz.level}` : 'Not this time');
+    if (r.done) this.finishBreak();
+    else this.paintQuiz();
+  }
+
+  useQuizLife(id: LifelineId): void {
+    const msg = this.quiz.useLifeline(id);
+    if (!msg) return;
+    this.setStatus(id === 'friend' ? 'Video Call a Friend' : msg.slice(0, 28));
+    if (this.quiz.phase === 'end') this.finishBreak();
+    else this.paintQuiz();
+  }
+
+  private setQuizWorldVis(on: boolean): void {
+    const playing = on && this.quiz.phase === 'question';
+    this.setVis(this.quizPanel, on);
+    for (const b of this.quizAnswers) this.setVis(b, playing);
+    for (const b of this.quizLives) this.setVis(b, playing);
+    const friendOn = playing && (this.quiz.friendThinking || !!this.quiz.friendReveal);
+    this.setVis(this.quizFriendBtn, friendOn);
+    if (on) {
+      for (const b of this.buttons.values()) {
+        if (b.kind.startsWith('conn-')) this.setVis(b, false);
+      }
+    } else {
+      for (const b of this.buttons.values()) {
+        if (b.kind.startsWith('conn-')) {
+          b.wantVisible = true;
+          b.label.mesh.visible = !!this.xrOn;
+        }
+      }
+      this.refreshKeepUndo();
+    }
+  }
+
+  private paintQuizMeta(): void {
+    const meta = document.getElementById('quiz-meta');
+    if (!meta || this.quiz.phase !== 'question') return;
+    const sec = Math.ceil(this.quiz.sessionLeft() / 1000);
+    meta.textContent = `Lv ${this.quiz.level} · ${sec}s · ${this.quiz.score} pts · streak ${this.quiz.streak}`;
+    if (this.quizPanel && this.quiz.phase === 'question') {
+      const q = this.quiz.current();
+      this.quizPanel.title = q ? q.prompt : 'Break quiz';
+      this.quizPanel.subtitle = `${sec}s · ${this.quiz.score} pts`;
+      this.drawWorldBtn(this.quizPanel);
+    }
+  }
+
+  private paintQuiz(): void {
+    const root = document.getElementById('quiz-root');
+    const start = document.getElementById('quiz-start');
+    const play = document.getElementById('quiz-play');
+    const end = document.getElementById('quiz-end');
+    if (!root || !start || !play || !end) return;
+    const on = this.quiz.phase !== 'off';
+    root.hidden = !on;
+    start.hidden = this.quiz.phase !== 'start';
+    play.hidden = this.quiz.phase !== 'question';
+    end.hidden = this.quiz.phase !== 'end';
+    if (this.quiz.phase === 'question') {
+      const q = this.quiz.current();
+      this.paintQuizMeta();
+      const prompt = document.getElementById('quiz-prompt');
+      if (prompt && q) prompt.textContent = q.prompt;
+      const box = document.getElementById('quiz-choices');
+      if (box && q) {
+        box.innerHTML = '';
+        q.choices.forEach((c, i) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.textContent = c;
+          b.disabled = this.quiz.hidden.has(i);
+          bindGaze(b);
+          b.onclick = () => this.answerQuiz(i);
+          box.append(b);
+        });
+      }
+      document.querySelectorAll<HTMLButtonElement>('#quiz-lives [data-life]').forEach((b) => {
+        const id = (b.dataset.life || '') as LifelineId;
+        b.disabled = !!this.quiz.used[id];
+      });
+      const help = document.getElementById('quiz-help');
+      if (help) {
+        help.hidden = !this.quiz.help;
+        help.textContent = this.quiz.help;
+      }
+      const friend = document.getElementById('quiz-friend');
+      const fs = document.getElementById('quiz-friend-status');
+      const fp = document.getElementById('quiz-friend-pick');
+      if (friend) friend.hidden = !(this.quiz.friendThinking || this.quiz.friendReveal);
+      if (fs) fs.textContent = this.quiz.friendThinking ? 'Thinking…' : (this.quiz.friendReveal ? 'Practice friend · offline pick' : '');
+      if (fp) fp.textContent = this.quiz.friendReveal;
+      this.quizAnswers.forEach((b, i) => {
+        if (q) {
+          b.title = q.choices[i];
+          b.dimmed = this.quiz.hidden.has(i);
+          this.drawWorldBtn(b);
+        }
+        this.setVis(b, true);
+      });
+      this.quizLives.forEach((b) => {
+        const id = b.kind.replace('quiz-life-', '') as LifelineId;
+        b.dimmed = this.quiz.used[id];
+        this.drawWorldBtn(b);
+        this.setVis(b, true);
+      });
+      this.quizPanel.title = q ? q.prompt : 'Break quiz';
+      this.quizPanel.subtitle = `${Math.ceil(this.quiz.sessionLeft() / 1000)}s · ${this.quiz.score} pts`;
+      this.drawWorldBtn(this.quizPanel);
+      this.setVis(this.quizPanel, true);
+      const friendOn = !!(this.quiz.friendThinking || this.quiz.friendReveal);
+      this.quizFriendBtn.title = 'Practice friend';
+      this.quizFriendBtn.subtitle = this.quiz.friendReveal || (this.quiz.friendThinking ? 'Thinking…' : 'offline pick');
+      this.drawWorldBtn(this.quizFriendBtn);
+      this.setVis(this.quizFriendBtn, friendOn);
+    }
+    if (this.quiz.phase === 'end') {
+      const score = document.getElementById('quiz-end-score');
+      if (score) score.textContent = `${this.quiz.score} pts · level ${this.quiz.level} · ${this.quiz.history.length} played. Back to work: ${this.quiz.pausedTabs} tabs restored.`;
+      const facts = document.getElementById('quiz-facts');
+      if (facts) {
+        facts.innerHTML = this.quiz.history.map((h) => `<p>Did you know: ${h.q.fact}</p>`).join('') || '<p>No questions played.</p>';
+      }
+    }
+    if (this.quiz.phase === 'start') {
+      this.quizPanel.title = 'Break quiz';
+      this.quizPanel.subtitle = '60-second break';
+      this.drawWorldBtn(this.quizPanel);
+    }
   }
 }
 

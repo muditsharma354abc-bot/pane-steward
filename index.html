@@ -88,7 +88,7 @@
       .tab-text{display:flex;flex-direction:column;min-width:0;flex:1;text-align:left}
       .tab-heading,.tab-sub{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
       .tab-heading{font-size:var(--fs-sm);font-weight:700;color:var(--ink)}
-      .tab-sub{font-size:calc(var(--fs-sm) - 4px);font-weight:500;color:var(--mute)}
+      .tab-sub{font-size:18px;font-weight:500;color:var(--mute)}
       .tab-item:not(.active):not(.gaze) .tab-icon{color:var(--mute)}
       .tab-item button.tab-close{
         border:none;border-radius:0;min-width:48px;min-height:52px;padding:0;
@@ -117,15 +117,16 @@
         background:var(--pane-bg);border:1px solid var(--btn-border);border-radius:24px;
         padding:12px;box-sizing:border-box;box-shadow:var(--shadow);overflow:hidden;min-width:0;
       }
+      #dock-main{flex:1 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
       #mode-chip,#status-line,#session{flex:0 0 auto}
-      #status-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      #session{font-size:var(--fs-sm);color:var(--mute);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      #status-line{white-space:nowrap;overflow:hidden;text-overflow:clip}
+      #session{font-size:var(--fs-sm);color:var(--mute);text-align:center;white-space:nowrap;overflow:hidden}
       #speech{font-size:var(--fs-sm);color:var(--ink);background:var(--speech-bg);border-radius:16px;padding:10px 12px;border:1px solid transparent;line-height:1.35;flex:1 1 auto;min-height:0;overflow:auto}
       html.hc #speech{border-color:var(--btn-border)}
-      #reason{font-size:var(--fs-sm);color:var(--accent-ink);min-height:1.2em;max-height:1.35em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 0 auto;margin:0 0 4px}
+      #reason{font-size:var(--fs-sm);color:var(--accent-ink);min-height:1.2em;max-height:1.35em;white-space:nowrap;overflow:hidden;flex:0 0 auto;margin:0 0 4px}
       #connectors{display:flex;flex-wrap:wrap;gap:8px}
       #connectors button{flex:1 1 42%;min-height:48px;padding:8px;font-size:var(--fs-sm)}
-      #btn-more{width:100%;font-weight:700}
+      #btn-break,#btn-more{width:100%;font-weight:700}
       #more-panel{display:flex;flex-direction:column;gap:8px;flex:0 1 auto;min-height:0;overflow:auto}
       #more-panel[hidden]{display:none !important}
       #connectors-note{font-size:var(--fs-sm);color:var(--mute);line-height:1.25}
@@ -161,6 +162,32 @@
       #guide-step{font-size:var(--fs-md);font-weight:800;margin:0 0 6px}
       #guide-body{font-size:var(--fs-sm);color:var(--mute);margin:0 0 12px}
       #btn-guide-next{min-width:140px}
+
+      #quiz-root{
+        position:fixed;top:72px;bottom:16px;left:calc(var(--tabs-w) + 24px);right:calc(var(--dock-w) + 24px);
+        z-index:36;background:var(--pane-bg);border:1px solid var(--btn-border);border-radius:24px;
+        box-shadow:var(--shadow);padding:20px 22px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;
+        overflow:auto;
+      }
+      #quiz-root[hidden]{display:none !important}
+      #quiz-start h2,#quiz-end h2{margin:0;font-size:var(--fs-lg)}
+      #quiz-start p,#quiz-end p{margin:0;color:var(--mute);font-size:var(--fs-sm);line-height:1.35}
+      #quiz-begin{align-self:flex-start;font-weight:800;border-color:var(--accent);color:var(--accent-ink);min-height:56px}
+      #quiz-meta{font-size:var(--fs-sm);font-weight:700;color:var(--accent-ink)}
+      #quiz-prompt{font-size:var(--fs-md);font-weight:700;margin:0;line-height:1.3}
+      #quiz-choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+      #quiz-choices button{min-height:64px;font-weight:700;text-align:left}
+      #quiz-lives{display:flex;flex-wrap:wrap;gap:8px}
+      #quiz-lives button{flex:1 1 42%;min-height:52px;font-weight:700}
+      #quiz-help{font-size:var(--fs-sm);color:var(--mute);margin:0}
+      #quiz-friend{background:var(--speech-bg);border:1px solid var(--btn-border);border-radius:18px;padding:12px;display:flex;gap:12px;align-items:flex-start}
+      #quiz-friend[hidden]{display:none !important}
+      .friend-tile{width:56px;height:56px;border-radius:16px;border:2px solid var(--accent);background:var(--btn-bg);display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--accent-ink);flex-shrink:0}
+      .friend-label{margin:0;font-size:var(--fs-sm);font-weight:700;color:var(--accent-ink)}
+      #quiz-friend-status,#quiz-friend-pick{margin:4px 0 0;font-size:var(--fs-sm);color:var(--mute)}
+      #quiz-facts{font-size:var(--fs-sm);color:var(--mute);line-height:1.35}
+      #quiz-facts p{margin:0 0 8px}
+
       #opts-pop{
         position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:75;
         min-width:min(360px,86vw);text-align:left;
@@ -209,6 +236,7 @@
     </main>
 
     <aside id="chat-dock" aria-label="Chat steward">
+      <div id="dock-main">
       <div id="mode-chip">Demo Steward · offline — no API key</div>
       <div id="status-line" role="status" aria-live="polite">Demo Steward · offline twin</div>
       <div id="session">Did 0 · Kept 0</div>
@@ -220,6 +248,7 @@
         <button type="button" data-conn="mail" aria-pressed="false" title="Demo Mail — no OAuth">Mail · demo</button>
         <button type="button" data-conn="notes" aria-pressed="false" title="Demo Notes">Notes · demo</button>
       </div>
+      <button id="btn-break" type="button">Break</button>
       <button id="btn-more" type="button" aria-expanded="false">More</button>
       <div id="more-panel" hidden>
         <div id="connectors-note">Web: public pages · Cal/Mail/Notes: demo, no OAuth</div>
@@ -229,6 +258,7 @@
           <button type="button" data-intent="next">Next</button>
           <button type="button" data-intent="web">Web</button>
         </div>
+      </div>
       </div>
       <div id="keep-row">
         <button id="btn-keep" type="button" disabled>Keep all</button>
@@ -253,6 +283,41 @@
         <p id="guide-step">1 / 3 · Open a tab</p>
         <p id="guide-body">Tap + or Prep to open a pane.</p>
         <button id="btn-guide-next" type="button">Next</button>
+      </div>
+    </div>
+
+    <div id="quiz-root" hidden>
+      <div id="quiz-start">
+        <p class="eyebrow">60-second break</p>
+        <h2>Break quiz</h2>
+        <p>Take a 60-second brain break, then Pane Steward puts your tabs back exactly where you left them.</p>
+        <button id="quiz-begin" type="button">Start break</button>
+      </div>
+      <div id="quiz-play" hidden>
+        <div id="quiz-meta"></div>
+        <p id="quiz-prompt"></p>
+        <div id="quiz-choices"></div>
+        <div id="quiz-lives">
+          <button type="button" data-life="hint">Hint</button>
+          <button type="button" data-life="expert">Expert</button>
+          <button type="button" data-life="fifty">50:50</button>
+          <button type="button" data-life="star">Star</button>
+          <button type="button" data-life="friend">Video Call a Friend</button>
+        </div>
+        <p id="quiz-help" hidden></p>
+        <div id="quiz-friend" hidden>
+          <div class="friend-tile" aria-hidden="true">◎</div>
+          <div>
+            <p class="friend-label">Practice friend · offline pick</p>
+            <p id="quiz-friend-status">Thinking…</p>
+            <p id="quiz-friend-pick"></p>
+          </div>
+        </div>
+      </div>
+      <div id="quiz-end" hidden>
+        <h2>Break over</h2>
+        <p id="quiz-end-score"></p>
+        <div id="quiz-facts"></div>
       </div>
     </div>
     <div id="opts-pop" hidden role="dialog" aria-label="Options">

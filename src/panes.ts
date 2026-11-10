@@ -203,10 +203,10 @@ export class PaneManager {
       panel(g, W, H, C.pane, p.focused ? C.accent : undefined);
       const maxW = W - 80;
       const cap = paneCaption(p.title, p.id);
-      let y = para(g, cap.heading, 40, 40, 36, maxW, C.ink, 700);
-      if (cap.subtitle) y = para(g, cap.subtitle, 40, y + 4, 26, maxW, C.mute, 600);
-      y += 12;
-      para(g, p.body || ' ', 40, y, 24, maxW, C.mute, 400);
+      let y = para(g, cap.heading, 40, 36, 48, maxW, C.ink, 700, 1);
+      if (cap.subtitle) y = para(g, cap.subtitle, 40, y + 6, 34, maxW, C.mute, 600, 1);
+      y += 14;
+      para(g, p.body || ' ', 40, y, 48, maxW, C.mute, 400, 3);
     });
   }
 }

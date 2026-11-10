@@ -120,9 +120,9 @@ export function demoPlan(intent: string, openIds: string[], ctx?: DemoContext): 
   if (/prep|call|meet/.test(t)) {
     return {
       speech: "Opening Brief, Now, and Done from your prep ask — skim Brief, then Keep all.",
-      reason: 'Chat → Prep call → 3 panes',
+      reason: 'Chat → Prep → 3 panes',
       calls: [
-        { name: 'propose_plan', args: { speech: "Opening Brief, Now, and Done from your prep ask — skim Brief, then Keep all.", reason: 'Chat → Prep call → 3 panes' } },
+        { name: 'propose_plan', args: { speech: "Opening Brief, Now, and Done from your prep ask — skim Brief, then Keep all.", reason: 'Chat → Prep → 3 panes' } },
         { name: 'open_pane', args: { id: 'brief', title: 'Brief · Prep call', body: 'Goal: align on Q4 scope.\nAttendees: you + 2.\nBring: one blocker.' } },
         { name: 'open_pane', args: { id: 'now', title: 'Now · Prep call', body: '1. Open notes\n2. State goal in 20s\n3. Ask for decisions' } },
         { name: 'open_pane', args: { id: 'done', title: 'Done · Prep call', body: 'Capture decisions here.\nPark leftovers after the call.' } },
