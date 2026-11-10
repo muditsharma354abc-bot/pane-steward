@@ -211,30 +211,61 @@ try {
   await cleanChrome();
   await shot('quiz-friend.png');
 
-  const clickCorrect = async () => page.evaluate(() => {
+  const clickAnswer = async (wantCorrect) => page.evaluate((wantCorrect) => {
     const q = window.__ps?.quiz?.current?.();
     if (!q) return false;
     const btns = [...document.querySelectorAll('#quiz-choices button')];
-    const b = btns[q.answer];
-    if (b) b.click();
+    let idx = q.answer;
+    if (!wantCorrect) {
+      idx = q.choices.findIndex((_, n) => n !== q.answer);
+      if (idx < 0) idx = (q.answer + 1) % Math.max(btns.length, 1);
+    }
+    if (btns[idx]) btns[idx].click();
     return true;
-  });
-  await clickCorrect();
+  }, wantCorrect);
+
+  await clickAnswer(false);
+  await page.waitForTimeout(320);
+  await cleanChrome();
+  await shot('quiz-wrong.png');
+  await page.waitForTimeout(900);
+
+  await clickAnswer(true);
   await page.waitForTimeout(280);
   await cleanChrome();
   await shot('quiz-feedback.png');
   await shot('quiz-levelup.png');
-  await page.waitForTimeout(700);
-  for (let i = 0; i < 12; i++) {
-    const ended = await page.evaluate(() => window.__ps?.quiz?.phase === 'end' || !!document.querySelector('#quiz-end:not([hidden])'));
-    if (ended) break;
-    await clickCorrect();
-    await page.waitForTimeout(920);
+  await page.waitForTimeout(900);
+
+  for (let i = 0; i < 14; i++) {
+    const info = await page.evaluate(() => ({
+      ended: window.__ps?.quiz?.phase === 'end',
+      left: window.__ps?.quiz?.sessionLeft?.() ?? 0,
+    }));
+    if (info.ended || info.left <= 12000) break;
+    await clickAnswer(i % 3 !== 0);
+    await page.waitForTimeout(3800);
+  }
+  await page.waitForFunction(() => {
+    const end = document.getElementById('quiz-end');
+    if (end && !end.hidden) return true;
+    const n = parseInt(document.getElementById('quiz-timer-num')?.textContent || '99', 10);
+    return n <= 10 && !document.getElementById('quiz-play')?.hidden;
+  }, { timeout: 70000 }).catch((e) => errs.push('quiz-amber wait: ' + e.message));
+  const playOn = await page.evaluate(() => {
+    const play = document.getElementById('quiz-play');
+    return !!(play && !play.hidden);
+  });
+  if (playOn) {
+    await cleanChrome();
+    await shot('quiz-amber.png');
+  } else {
+    errs.push('quiz-amber: play card already gone');
   }
   await page.waitForFunction(() => {
     const end = document.getElementById('quiz-end');
     return !!(end && !end.hidden);
-  }, { timeout: 75000 }).catch((e) => errs.push('quiz-end wait: ' + e.message));
+  }, { timeout: 25000 }).catch((e) => errs.push('quiz-end wait: ' + e.message));
   await page.waitForTimeout(250);
   await cleanChrome();
   await shot('quiz-end.png');
@@ -359,13 +390,8 @@ try {
   });
   xrNote.held = !!(held && held.ok);
   xrNote.detail += ' | hold ' + JSON.stringify(held);
-  if (held && held.ok) {
-    await page.evaluate(() => {
-      const pop = document.getElementById('opts-pop');
-      if (pop) pop.style.setProperty('display', 'block', 'important');
-    });
-  }
-  await page.waitForTimeout(200);
+  await hideHudForXr(true);
+  await page.waitForTimeout(400);
   await shot('light-xr-longhold.png');
 
   const pinchDock = await page.evaluate(async () => {
@@ -415,7 +441,21 @@ try {
   await forceClick('#btn-enter');
   await page.waitForTimeout(3500);
   await hideHudForXr();
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(700);
+  await hideHudForXr();
+  await page.evaluate(() => {
+    const hide = (root) => {
+      root.querySelectorAll('*').forEach((node) => {
+        if (node.shadowRoot) hide(node.shadowRoot);
+        const t = (node.textContent || '').replace(/\s+/g, ' ').trim();
+        if (t === 'Remote Control Active' || (t.includes('Remote Control Active') && t.length < 48)) {
+          node.style.setProperty('display', 'none', 'important');
+        }
+      });
+    };
+    hide(document);
+  });
+  await page.waitForTimeout(400);
   await shot('light-xr-cold-start.png');
 } catch (e) {
   errs.push('xr-cold: ' + e.message);

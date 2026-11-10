@@ -300,6 +300,7 @@ export class StewardSystem extends createSystem({
     for (let i = 0; i < 3; i++) {
       const slot = i;
       const b = this.makeWorldBtn(`tab-${i}`, 'Tab', [-0.92, 1.46 - i * 0.14, -0.95], () => {
+        if (this.workPaused()) return;
         const p = this.panes.listed()[slot];
         if (p) {
           this.panes.focus(p.id);
@@ -307,6 +308,7 @@ export class StewardSystem extends createSystem({
         }
       }, {
         hold: () => {
+          if (this.workPaused()) return;
           const p = this.panes.listed()[slot];
           if (p) this.openOptions({ kind: 'tab', id: p.id, title: p.title });
           else this.openOptions({ kind: 'generic' });
@@ -363,9 +365,21 @@ export class StewardSystem extends createSystem({
         para(g, b.title, 28, 28, 26, W - 56, ink, 700, 2);
         return;
       }
+      if (b.kind === 'quiz-panel') {
+        const after = para(g, b.title, 40, 36, 34, W - 80, ink, 700, 3);
+        if (b.subtitle) {
+          text(g, b.subtitle, W / 2, Math.min(after + 22, H - 40), 26, C.mute, 600, W - 64, 'center');
+        }
+        return;
+      }
       if (b.kind.startsWith('quiz-life-')) {
-        drawLifeIcon(g, b.kind.replace('quiz-life-', ''), 40, H / 2, 36, ink);
-        text(g, b.title, W / 2 + 18, H / 2, Math.round(H * 0.32), ink, 700, W - 90, 'center');
+        drawLifeIcon(g, b.kind.replace('quiz-life-', ''), W / 2, H * 0.30, 30, ink);
+        if (b.subtitle) {
+          text(g, b.title, W / 2, H * 0.60, 20, ink, 700, W - 24, 'center');
+          text(g, b.subtitle, W / 2, H * 0.80, 20, ink, 700, W - 24, 'center');
+        } else {
+          text(g, b.title, W / 2, H * 0.68, 22, ink, 700, W - 24, 'center');
+        }
         return;
       }
       if (b.subtitle) {
@@ -574,7 +588,7 @@ export class StewardSystem extends createSystem({
       const name = id === 'web' ? 'Web' : `${id[0].toUpperCase()}${id.slice(1)} · demo`;
       add(this.connectors[id] ? `${name} · on` : `Connect ${name}`, () => this.toggleConnector(id));
     });
-    pop.hidden = false;
+    pop.hidden = !!this.xrOn;
     this.optsPanel.title = title.textContent || 'Options';
     this.drawWorldBtn(this.optsPanel);
     this.setVis(this.optsPanel, true);
@@ -631,7 +645,7 @@ export class StewardSystem extends createSystem({
     const listed = this.panes.listed();
     for (const p of listed) {
       const row = document.createElement('div');
-      row.className = 'tab-item' + (p.focused ? ' active' : '');
+      row.className = 'tab-item' + (p.focused ? ' active' : '') + (this.workPaused() ? ' paused' : '');
       row.dataset.id = p.id;
       const sel = document.createElement('button');
       sel.type = 'button';
@@ -652,24 +666,34 @@ export class StewardSystem extends createSystem({
         sub.textContent = cap.subtitle;
         textWrap.append(sub);
       }
+      if (this.workPaused()) {
+        const tag = document.createElement('span');
+        tag.className = 'tab-paused-tag';
+        tag.textContent = 'Paused';
+        textWrap.append(tag);
+      }
       sel.append(icon, textWrap);
       sel.title = p.title;
-      sel.setAttribute('aria-label', p.title);
+      sel.setAttribute('aria-label', this.workPaused() ? `${p.title} (paused)` : p.title);
+      sel.disabled = this.workPaused();
       bindGazeHold(sel, {
         onClick: () => {
+          if (this.workPaused()) return;
           this.panes.focus(p.id);
           this.setStatus(`Focusing ${p.title}`);
         },
-        onHold: () => this.openOptions({ kind: 'tab', id: p.id, title: p.title }),
+        onHold: () => { if (!this.workPaused()) this.openOptions({ kind: 'tab', id: p.id, title: p.title }); },
       });
       const close = document.createElement('button');
       close.type = 'button';
       close.className = 'tab-close';
       close.setAttribute('aria-label', `Remove ${p.title}`);
       close.textContent = '×';
+      close.disabled = this.workPaused();
       bindGaze(close);
       close.onclick = (ev) => {
         ev.stopPropagation();
+        if (this.workPaused()) return;
         row.classList.add('leaving');
         setTimeout(() => {
           this.panes.close(p.id);
@@ -688,7 +712,8 @@ export class StewardSystem extends createSystem({
       if (p) {
         const cap = paneCaption(p.title, p.id);
         b.title = cap.heading;
-        b.subtitle = cap.subtitle;
+        b.subtitle = this.workPaused() ? 'Paused' : cap.subtitle;
+        b.dimmed = this.workPaused();
         b.twin = `.tab-item[data-id="${p.id}"]`;
         b.gazed = false;
         this.drawWorldBtn(b);
@@ -1124,21 +1149,23 @@ export class StewardSystem extends createSystem({
   }
 
   private buildQuizWorld(): void {
-    this.quizPanel = this.makeWorldBtn('quiz-panel', 'Break quiz', [0, 1.40, -1.12], () => {}, { w: 0.78, h: 0.30 });
+    this.quizPanel = this.makeWorldBtn('quiz-panel', 'Break quiz', [0, 1.54, -1.12], () => {}, { w: 1.04, h: 0.42 });
     this.setVis(this.quizPanel, false);
     const spots: [number, number, number][] = [
-      [-0.38, 1.10, -1.12], [0.38, 1.10, -1.12],
-      [-0.38, 0.92, -1.12], [0.38, 0.92, -1.12],
+      [-0.40, 1.16, -1.12], [0.40, 1.16, -1.12],
+      [-0.40, 0.98, -1.12], [0.40, 0.98, -1.12],
     ];
     spots.forEach((pos, i) => {
-      const b = this.makeWorldBtn(`quiz-ans-${i}`, `Option ${i + 1}`, pos, () => this.answerQuiz(i), { w: 0.36, h: 0.14 });
+      const b = this.makeWorldBtn(`quiz-ans-${i}`, `Option ${i + 1}`, pos, () => this.answerQuiz(i), { w: 0.38, h: 0.14 });
       this.setVis(b, false);
       this.quizAnswers.push(b);
     });
     const lives: LifelineId[] = ['hint', 'expert', 'fifty', 'star', 'friend'];
-    const labels = ['Hint', 'Expert', '50:50', 'Star', 'Call friend'];
+    const labels = ['Hint', 'Expert', '50:50', 'Star', 'Video Call'];
+    const xs = [-0.50, -0.25, 0, 0.25, 0.50];
     lives.forEach((id, i) => {
-      const b = this.makeWorldBtn(`quiz-life-${id}`, labels[i], [0.92, 1.46 - i * 0.10, -0.95], () => this.useQuizLife(id), { w: 0.30, h: 0.09 });
+      const b = this.makeWorldBtn(`quiz-life-${id}`, labels[i], [xs[i], 0.76, -1.12], () => this.useQuizLife(id), { w: 0.23, h: 0.16 });
+      if (id === 'friend') b.subtitle = 'a Friend';
       this.setVis(b, false);
       this.quizLives.push(b);
     });
@@ -1152,8 +1179,8 @@ export class StewardSystem extends createSystem({
     this.quiz.pausedTabs = this.workPause.length;
     this.quiz.reset();
     this.panes.root.visible = false;
-    for (const b of this.tabWorld) this.setVis(b, false);
     this.setQuizWorldVis(true);
+    this.syncTabUi();
     this.paintQuiz();
     this.setStatus('Break · 60s, then tabs return');
     this.setSpeech('Take a 60-second brain break, then Pane Steward puts your tabs back exactly where you left them.');
@@ -1187,6 +1214,7 @@ export class StewardSystem extends createSystem({
     this.setQuizWorldVis(false);
     this.refreshKeepUndo();
     this.quiz.phase = 'off';
+    this.syncTabUi();
     this.paintQuiz();
     this.setStatus(`Back to work: ${n} tabs restored.`);
     this.setSpeech(`Back to work: ${n} tabs restored.`);
@@ -1239,6 +1267,10 @@ export class StewardSystem extends createSystem({
     const chosen = box?.querySelectorAll('button');
     // flashed in paint just before timeout by class on last clicked; handled by caller via event
     void chosen;
+  }
+
+  private workPaused(): boolean {
+    return this.quiz.phase !== 'off';
   }
 
   private setQuizWorldVis(on: boolean): void {
@@ -1345,6 +1377,10 @@ export class StewardSystem extends createSystem({
       this.quizLives.forEach((b) => {
         const id = b.kind.replace('quiz-life-', '') as LifelineId;
         b.dimmed = this.quiz.used[id];
+        if (id === 'friend') {
+          b.title = 'Video Call';
+          b.subtitle = 'a Friend';
+        }
         this.drawWorldBtn(b);
         this.setVis(b, true);
       });
@@ -1427,10 +1463,13 @@ function drawLifeIcon(g: CanvasRenderingContext2D, id: string, x: number, y: num
     g.lineTo(r * 0.55, r * 0.15);
     g.stroke();
   } else if (id === 'fifty') {
-    g.font = `700 ${Math.round(s * 0.55)}px ${g.font.split(' ').slice(-1)[0] || 'sans-serif'}`;
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText('1/2', 0, 0);
+    g.beginPath();
+    g.arc(0, 0, r * 0.85, 0, Math.PI * 2);
+    g.stroke();
+    g.beginPath();
+    g.moveTo(0, -r * 0.85);
+    g.lineTo(0, r * 0.85);
+    g.stroke();
   } else if (id === 'star') {
     g.beginPath();
     for (let i = 0; i < 5; i++) {
