@@ -17,10 +17,11 @@ LIGHT THEME (chat-first — no character meshes; no gizmos / DevUI):
 - quiz-lifelines.png         — Lifeline icon row
 - quiz-friend.png            — Practice friend · offline pick
 - quiz-feedback.png          — Correct feedback
-- quiz-end.png               — End card (human-paced test run)
 - quiz-wrong.png             — Wrong feedback (✗ Wrong)
 - quiz-amber.png             — Timer ring amber in the last 10 seconds
-- quiz-xr-question.png       — Break Quiz in immersive IWER
+- quiz-xr-question.png       — Break Quiz in immersive IWER (Brief / Now / Web)
 
 Skipped (not in README):
 - quiz-levelup.png           — duplicate of the next question
+- quiz-end.png               — deferred; a played end card is coming (do not use the 0-pts capture)
+- quiz-xr-long.png           — pre-freeze capture; shows a Done tab

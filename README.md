@@ -7,7 +7,7 @@
 **Chatbot-only steward** (no character meshes / avatars / billboards). **Chat docks on the right**; **vertical icon tabs on the left** (≤3, slide in/out) with a one-line title and subtitle (for example **Web** / example.com). Demo Steward or optional live Chat AI opens / focuses / closes tabs. One **Did N · Kept N** counter and a **status pill** in the dock header narrate what is happening. The connector note and intent row sit behind a **More** toggle. Chat placeholder: **Ask Steward…**. **Connectors tray:** Web (public URL fetch into a pane only); Calendar / Mail / Notes (demo stubs — **no OAuth**). **Keep all** / **Undo last**. A **Break** tab offers a 60-second offline brain break, then work tabs are restored.
 
 **Live:** https://muditsharma354abc-bot.github.io/pane-steward/?demo=1  
-**Live build:** commit `8f508ee` · bundle `index-CixV1may.js`
+**Live build (frozen):** commit `9efea44` · bundle `index-vtuOuXla.js`
 
 ![Start card: Demo Steward offline, no API key](screens/light-cold-start.png)
 
@@ -39,13 +39,15 @@ Warm light theme (no pure white or black). Text contrast: body ink **14.2:1**, m
 
 ## Break Quiz
 
-Take a 60-second brain break, then Pane Steward puts your tabs back exactly where you left them. One **Break** tab in the dock; starting a break pauses the work tabs — they dim and show a **Paused** tag, in 2D and in XR. A 60-second drain ring times the session and turns amber in the last 10 seconds.
+Take a 60-second brain break, then Pane Steward puts your tabs back exactly where you left them. One **Break** tab in the dock; starting a break pauses the work tabs — they dim and show a high-contrast **Paused** tag, in 2D and in XR. A 60-second drain ring times the session and turns amber in the last 10 seconds.
 
 Questions come from a bundled offline pack of **32** (date facts, science, and general knowledge). Date facts are source-checked for the judging window; see [`src/quiz-sources.md`](src/quiz-sources.md). Each question has 4 large answer targets with gaps, and each target has a button twin. Correct answers raise the level and build a streak.
 
-Five one-use lifelines sit in a compact icon row — **Hint**, **Expert**, **50:50**, **Star**, and **Video Call a Friend** — and grey out when spent. The lifeline tile reads **Video Call a Friend**. It opens an icon-tile card labelled **Practice friend · offline pick** (simulated, offline, no real call). Expert advice and the friend pick come from the bundled pack, with no AI call.
+Five one-use lifelines sit in a compact icon row — **Hint**, **Expert**, **50:50**, **Star**, and **Video Call a Friend** — and grey out when spent. The lifeline tile reads **Video Call a Friend**. It opens an icon-tile card labelled **Practice friend · offline pick** (simulated, offline, no real call). Expert advice and the friend pick come from the bundled pack, with no AI call. Wrong feedback and the friend result hold for about 2.5 seconds with the clock paused.
 
-Answer feedback shows ✓ **Correct** or ✗ **Wrong**, not colour alone, plus a soft tone that follows Mute. In immersive IWER the question wraps on a larger card, and the lifelines sit in their own row. The end card shows the score, level, best streak, Did you know facts, **Back to work: 3 tabs restored**, and a **Back to work** button.
+Answer feedback shows ✓ **Correct** or ✗ **Wrong**, not colour alone, plus a soft tone that follows Mute. The status line shows the full Undo and Back to work messages (including **Back to work: 3 tabs restored**). The end card un-dims the work tabs, shows that restored message, and offers a **Back to work** button, along with the score, level, best streak, and Did you know facts.
+
+In immersive IWER the question uses larger type and wraps on a larger card (long questions wrap to 3 lines), with bigger timer and lifeline labels. XR tabs are **Brief / Now / Web**, matching 2D, and the lifelines sit in their own row.
 
 ## Eyes + hands
 
@@ -94,10 +96,11 @@ npm run dev:runtime
 | `quiz-lifelines.png` | Lifeline icon row (Hint, Expert, 50:50, Star, Video Call a Friend) |
 | `quiz-friend.png` | Practice friend · offline pick |
 | `quiz-feedback.png` | Correct feedback |
-| `quiz-end.png` | End card (human-paced test run) |
 | `quiz-wrong.png` | Wrong feedback (✗ Wrong) |
 | `quiz-amber.png` | Timer ring amber in the last 10 seconds |
-| `quiz-xr-question.png` | Break Quiz in immersive IWER |
+| `quiz-xr-question.png` | Break Quiz in immersive IWER (Brief / Now / Web) |
+
+A played end-card screenshot is coming, so the gallery omits that frame until then.
 
 ## Current gaps
 
