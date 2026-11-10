@@ -22,14 +22,18 @@ import type { LifelineId } from './quiz-pack.js';
 
 
 function shortenStatus(s: string): string {
-  if (/^Guide ·/.test(s)) return 'Guide · tab, Keep, Undo';
+  if (/^Guide/.test(s)) return 'Guide · tab, Keep, Undo';
   if (/^Kept all/.test(s)) return 'Kept all — ready';
   if (/^Chat → Prep/.test(s)) return 'Chat → Prep → 3 panes';
   if (/^Tour done/.test(s)) return 'Tour done · offline twin';
   if (/^Demo Steward/.test(s)) return 'Demo Steward · offline';
-  if (/^Pending Keep/.test(s)) return s.replace('Pending Keep all', 'Pending Keep').replace('Pending Keep ·', 'Pending Keep ·');
-  if (/^Steering tabs/.test(s) || /^Steer:/.test(s)) return s.length > 28 ? `${s.slice(0, 26)}` : s;
-  if (s.length > 32) return s.slice(0, 32);
+  if (/^Pending Keep/.test(s)) return s.replace('Keep all', 'Keep');
+  if (/^Break ·/.test(s)) return 'Break · 60s, tabs back';
+  if (/^Break quiz/.test(s)) return 'Break quiz · pick one';
+  if (/^Video Call/.test(s)) return 'Video Call a Friend';
+  if (/^Back to work/.test(s)) return s.replace('Back to work:', 'Back:');
+  if (/^Steering tabs/.test(s) || /^Steer:/.test(s)) return s.length > 28 ? s.slice(0, 28) : s;
+  if (s.length > 28) return s.slice(0, 28);
   return s;
 }
 

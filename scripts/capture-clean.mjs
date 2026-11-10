@@ -63,12 +63,13 @@ const cleanChrome = async () => {
   for (const el of document.querySelectorAll('body > div')) {
     if (el.shadowRoot) el.style.setProperty('display', 'none', 'important');
   }
-  for (const id of ['mode-chip', 'status-line', 'top-bar', 'tab-rail', 'pane-stage', 'chat-dock', 'cold-start', 'guide', 'opts-pop']) {
+  for (const id of ['mode-chip', 'status-line', 'top-bar', 'tab-rail', 'pane-stage', 'chat-dock', 'cold-start', 'guide', 'opts-pop', 'quiz-root']) {
     const el = document.getElementById(id);
     if (!el) continue;
-    el.style.zIndex = '10000';
+    el.style.zIndex = id === 'quiz-root' ? '10050' : '10000';
     el.style.visibility = 'visible';
     el.style.opacity = '1';
+    if (id === 'quiz-root' && !el.hidden) el.style.removeProperty('display');
   }
   });
 };
@@ -155,15 +156,22 @@ await page.evaluate(() => {
   if (closes.length >= 3) closes[closes.length - 1].click();
 });
 await page.waitForTimeout(400);
-await page.click('#chips [data-intent="web"]');
+await forceClick('#btn-more');
+await forceClick('#chips [data-intent="web"]');
 await page.waitForFunction(() => !document.getElementById('btn-keep')?.disabled, { timeout: 25000 }).catch((e) => errs.push('wait web: ' + e.message));
 await page.waitForTimeout(2200);
+await page.evaluate(() => {
+  const b = document.getElementById('btn-more');
+  if (b && b.getAttribute('aria-expanded') === 'true') b.click();
+});
+await page.waitForTimeout(150);
 await cleanChrome();
 await shot('light-web.png');
 
 await forceClick('#btn-keep');
 await page.waitForTimeout(600);
-await page.click('#chips [data-intent="park"]');
+await forceClick('#btn-more');
+await forceClick('#chips [data-intent="park"]');
 await page.waitForFunction(() => !document.getElementById('btn-undo')?.disabled, { timeout: 25000 }).catch((e) => errs.push('wait undo: ' + e.message));
 await page.waitForTimeout(1400);
 await cleanChrome();
