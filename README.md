@@ -2,16 +2,20 @@
 
 **Meta VR Start Developer Competition 2026 · Productivity · New Experience**
 
-**Chatbot-only steward** (no character meshes / avatars / billboards). **Chat docks on the right**; **vertical pane tabs on the left** with content in the middle (≤3 tabs, easy add/remove). Chat AI (live) or **Demo Steward** (offline twin) opens / focuses / closes tabs. **Connectors tray:** Web (public URL fetch into a pane), Calendar / Mail / Notes (demo Connect stubs — **no OAuth**). Live **status line** narrates what is happening. **Keep all** / **Undo last** with focus dim on Keep.
+**Demo Steward runs fully offline.** Cold start opens a Start card — **Demo Steward · offline, no API key** — then a 3-step guide (open a tab, Keep all, Undo last). The product works without any third-party AI service (the take-away test). **Chat AI is an optional live mode.**
+
+**Chatbot-only steward** (no character meshes / avatars / billboards). **Chat docks on the right**; **vertical icon tabs on the left** (≤3, slide in/out) with content in the middle. Demo Steward or optional live Chat AI opens / focuses / closes tabs. A live **status line** narrates what is happening. **Connectors tray:** Web (public URL fetch into a pane only); Calendar / Mail / Notes (demo stubs — **no OAuth**). **Keep all** / **Undo last**.
 
 **Live:** https://muditsharma354abc-bot.github.io/pane-steward/?demo=1  
+**Live build:** commit `3e2d755` · bundle `index-DlwtOoks.js`
 
+![Start card: Demo Steward offline, no API key](screens/light-cold-start.png)
 
 ## Layout
 
 | Region | Role |
 |--------|------|
-| **Left** | Vertical tab strip — select / × remove / + add (max 3) |
+| **Left** | Vertical tab strip — select / × remove / + add (max 3, slide in/out) |
 | **Middle** | Focused tab content |
 | **Right** | Chat dock — speech, connectors, chips, Keep-all / Undo-last, input |
 | **Top** | Mode chip + live status narration + Enter XR / a11y |
@@ -23,17 +27,19 @@
 | **Demo Steward** | No API key, offline, live timeout, or `?demo=1` | On-device rules; chat still drives tabs + demo connectors |
 | **Live chat** | `?key=` in sessionStorage | OpenAI-compatible tools; fail → Demo Steward |
 
-**Honesty:** No character meshes. Connect = session flag. Web = public pages / link pane only. Calendar/Mail/Notes = demo stubs — **not** real Gmail/Calendar OAuth. Do **not** claim Quest Browser RPA or account takeover.
+**Honesty:** No character meshes. Connect = session flag. Web = public pages / link pane only. Calendar/Mail/Notes = demo stubs — not real Gmail/Calendar OAuth. No Quest Browser RPA or account control.
+
+## Light theme
+
+Warm light theme (no pure white or black). Text contrast: body ink **14.2:1**, muted **8.9:1**. Accent **#C45C26** at **4.0:1** is used for UI / large text only; the high-contrast accent is **6.2:1**. **Contrast** and **A− / A+** controls are kept. Panels are rounded with soft shadows; world panes tilt toward the user just below eye level.
+
+**Sound:** a click on Keep and a reverse whoosh on Undo, with a Sound / Muted button twin.
 
 ## Eyes + hands
 
-Shipped interaction (document only what Judges scored as proven — **not** a blanket Meta “Designing for eyes and hands” compliance claim, and **not** Quest-proven):
-
-- **Pinch** is the primary action; every action also has an a11y / HUD **button twin**
-- **Gaze highlight** on tabs and connector chips: IWSDK `Hovered` (ray / head-gaze / canvas pointer) plus 2D `:hover` / `.gaze`
-- **Long-hold (~600 ms)** pinch-hold or pointer-hold opens an Options popover (add/remove tab, Connect). Button twins included.
-- Soft WebAudio click on Keep and reverse whoosh on Undo, with a Sound / Muted twin
-- Default **light** theme (no pure white/black); Contrast is a high-contrast light variant
+- **Pinch** is the primary action; every action also has a **button twin**.
+- **Gaze highlight** on tabs and connector chips, and a **600 ms long-hold** Options popover, are shipped and verified on the 2D page, each with a button twin.
+- The XR-mesh hover / pinch-hold path is wired but not yet verified in an immersive IWER session, and has not been tested on a Quest headset.
 
 ## Accessibility
 
@@ -55,26 +61,23 @@ npm run dev:runtime
 
 ## Screenshots
 
-Prefer `light-*.png` under `screens/` and `/workspace/meta-vr/screens/pane-steward/`:
-
 | File | Shows |
 |------|--------|
-| `light-cold-start.png` | Warm Start card · Demo Steward offline · no API key |
-| `light-coldstart-guide.png` | 3-step guide after Start |
-| `light-connectors.png` | Connectors tray on the right chat dock |
+| `light-cold-start.png` | Start card · Demo Steward offline, no API key |
+| `light-coldstart-guide.png` | 3-step guide after Start (open a tab, Keep all, Undo last) |
 | `light-panes.png` | Vertical icon tabs + middle content from Prep |
+| `light-connectors.png` | Connectors tray on the right chat dock |
 | `light-keep.png` | Keep all pending |
-| `light-web.png` | Web Connect + Web pane |
 | `light-undo.png` | Undo last |
-| `light-demo-badge.png` | Offline twin chip |
-| `light-gaze.png` | Gaze highlight on a tab |
-| `light-longhold.png` | Long-hold options popover |
+| `light-gaze.png` | Gaze highlight on tabs and connector chips (2D) |
+| `light-longhold.png` | 600 ms long-hold Options popover (2D) |
+| `light-web.png` | Web Connect + Web pane |
 
 ## Current gaps
 
-- Hands-first IWER preview is wired (pinch + poke + head-gaze simulation). Not claimed as on-device verified.
+- Gaze highlight and the 600 ms long-hold Options popover are verified on the 2D page. The XR-mesh hover / pinch-hold path is wired but not yet verified in an immersive IWER session, and has not been tested on a Quest headset.
 - Calendar / Mail / Notes remain demo Connect stubs (no OAuth).
-- Web Connect is public URL / fetch into a pane only — no account takeover / RPA.
+- Web Connect is public URL / fetch into a pane only — no account takeover or RPA.
 
 ## Out of scope (v1)
 
