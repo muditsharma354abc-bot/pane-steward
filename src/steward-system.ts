@@ -14,7 +14,7 @@ import { PaneManager } from './panes.js';
 import { bindGaze, bindGazeHold, HOLD_MS, tabIcon } from './pointers.js';
 import { IS_DEMO, loadA11y, loadStats, saveA11y, saveStats, type A11yPrefs, type SessionStats } from './state.js';
 import { isMuted, sfxClick, sfxCorrect, sfxWhoosh, sfxWrong, toggleMuted } from './sfx.js';
-import { applyContrast, C } from './style.js';
+import { applyContrast, C, FONT } from './style.js';
 import type { PaneSnap, ToolBatch, ToolCall } from './tools.js';
 import { paneCaption } from './titles.js';
 import { BreakQuiz } from './quiz.js';
@@ -366,19 +366,22 @@ export class StewardSystem extends createSystem({
         return;
       }
       if (b.kind === 'quiz-panel') {
-        const after = para(g, b.title, 40, 36, 34, W - 80, ink, 700, 3);
+        const maxW = W - 72;
+        let size = 68;
+        while (size > 44 && countWrapLines(g, b.title, size, maxW) > 3) size -= 2;
+        const after = para(g, b.title, 36, 28, size, maxW, ink, 700, 3);
         if (b.subtitle) {
-          text(g, b.subtitle, W / 2, Math.min(after + 22, H - 40), 26, C.mute, 600, W - 64, 'center');
+          text(g, b.subtitle, W / 2, Math.min(after + 32, H - 48), 44, C.mute, 700, W - 64, 'center');
         }
         return;
       }
       if (b.kind.startsWith('quiz-life-')) {
-        drawLifeIcon(g, b.kind.replace('quiz-life-', ''), W / 2, H * 0.30, 30, ink);
+        drawLifeIcon(g, b.kind.replace('quiz-life-', ''), W / 2, H * 0.28, 36, ink);
         if (b.subtitle) {
-          text(g, b.title, W / 2, H * 0.60, 20, ink, 700, W - 24, 'center');
-          text(g, b.subtitle, W / 2, H * 0.80, 20, ink, 700, W - 24, 'center');
+          text(g, b.title, W / 2, H * 0.58, 30, ink, 800, W - 20, 'center');
+          text(g, b.subtitle, W / 2, H * 0.80, 30, ink, 800, W - 20, 'center');
         } else {
-          text(g, b.title, W / 2, H * 0.68, 22, ink, 700, W - 24, 'center');
+          text(g, b.title, W / 2, H * 0.68, 32, ink, 800, W - 20, 'center');
         }
         return;
       }
@@ -1149,7 +1152,7 @@ export class StewardSystem extends createSystem({
   }
 
   private buildQuizWorld(): void {
-    this.quizPanel = this.makeWorldBtn('quiz-panel', 'Break quiz', [0, 1.54, -1.12], () => {}, { w: 1.04, h: 0.42 });
+    this.quizPanel = this.makeWorldBtn('quiz-panel', 'Break quiz', [0, 1.56, -1.12], () => {}, { w: 1.10, h: 0.46 });
     this.setVis(this.quizPanel, false);
     const spots: [number, number, number][] = [
       [-0.40, 1.16, -1.12], [0.40, 1.16, -1.12],
@@ -1162,9 +1165,9 @@ export class StewardSystem extends createSystem({
     });
     const lives: LifelineId[] = ['hint', 'expert', 'fifty', 'star', 'friend'];
     const labels = ['Hint', 'Expert', '50:50', 'Star', 'Video Call'];
-    const xs = [-0.50, -0.25, 0, 0.25, 0.50];
+    const xs = [-0.54, -0.27, 0, 0.27, 0.54];
     lives.forEach((id, i) => {
-      const b = this.makeWorldBtn(`quiz-life-${id}`, labels[i], [xs[i], 0.76, -1.12], () => this.useQuizLife(id), { w: 0.23, h: 0.16 });
+      const b = this.makeWorldBtn(`quiz-life-${id}`, labels[i], [xs[i], 0.70, -1.12], () => this.useQuizLife(id), { w: 0.26, h: 0.20 });
       if (id === 'friend') b.subtitle = 'a Friend';
       this.setVis(b, false);
       this.quizLives.push(b);
@@ -1419,6 +1422,22 @@ export class StewardSystem extends createSystem({
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+function countWrapLines(g: CanvasRenderingContext2D, s: string, size: number, maxW: number): number {
+  g.font = `700 ${size}px ${FONT}`;
+  let lines = 0;
+  let line = '';
+  for (const w of (s || ' ').split(/\s+/).filter(Boolean)) {
+    if (g.measureText(`${line}${w} `).width > maxW && line) {
+      lines += 1;
+      line = `${w} `;
+    } else {
+      line += `${w} `;
+    }
+  }
+  if (line.trim()) lines += 1;
+  return Math.max(1, lines);
 }
 
 function hideStrayEnterXr(): void {

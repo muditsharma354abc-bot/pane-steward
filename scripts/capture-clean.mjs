@@ -494,6 +494,33 @@ try {
   });
   await page.waitForTimeout(400);
   await shot('quiz-xr-question.png');
+  await page.evaluate(() => {
+    const ps = window.__ps;
+    const quiz = ps?.quiz;
+    if (!quiz?.queue) return;
+    const i = quiz.queue.findIndex((q) => q.id === 'd-evaw');
+    if (i < 0) return;
+    quiz.idx = i;
+    if (typeof ps.paintQuiz === 'function') ps.paintQuiz();
+  });
+  await page.waitForTimeout(350);
+  await hideHudForXr();
+  await page.evaluate(() => {
+    const q = document.getElementById('quiz-root');
+    if (q) q.style.setProperty('display', 'none', 'important');
+    const hide = (root) => {
+      root.querySelectorAll('*').forEach((node) => {
+        if (node.shadowRoot) hide(node.shadowRoot);
+        const t = (node.textContent || '').replace(/\s+/g, ' ').trim();
+        if (t === 'Remote Control Active' || (t.includes('Remote Control Active') && t.length < 48)) {
+          node.style.setProperty('display', 'none', 'important');
+        }
+      });
+    };
+    hide(document);
+  });
+  await page.waitForTimeout(300);
+  await shot('quiz-xr-long.png');
 } catch (e) {
   errs.push('quiz-xr: ' + e.message);
 }
