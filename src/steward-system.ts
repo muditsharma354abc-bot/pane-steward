@@ -1205,6 +1205,7 @@ export class StewardSystem extends createSystem({
   showEndCard(): void {
     if (this.quiz.phase === 'off') return;
     this.quiz.end();
+    this.syncTabUi();
     this.setQuizWorldVis(false);
     this.setVis(this.quizPanel, true);
     this.paintQuiz();
@@ -1285,7 +1286,7 @@ export class StewardSystem extends createSystem({
   }
 
   private workPaused(): boolean {
-    return this.quiz.phase !== 'off';
+    return this.quiz.phase === 'start' || this.quiz.phase === 'question';
   }
 
   private setQuizWorldVis(on: boolean): void {

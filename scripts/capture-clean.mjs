@@ -470,6 +470,19 @@ try {
   await forceClick('#btn-more');
   await forceClick('#chips [data-intent="prep"]');
   await page.waitForTimeout(1600);
+  await page.click('#connectors [data-conn="web"]');
+  await page.waitForFunction(
+    () => document.querySelector('#connectors [data-conn="web"]')?.getAttribute('aria-pressed') === 'true',
+    { timeout: 8000 },
+  ).catch((e) => errs.push('quiz-xr web conn: ' + e.message));
+  await page.evaluate(() => {
+    const closes = [...document.querySelectorAll('.tab-item .tab-close')];
+    if (closes.length >= 3) closes[closes.length - 1].click();
+  });
+  await page.waitForTimeout(400);
+  await forceClick('#btn-more');
+  await forceClick('#chips [data-intent="web"]');
+  await page.waitForTimeout(2200);
   await forceClick('#btn-break');
   await forceClick('#quiz-begin');
   await page.waitForTimeout(400);
