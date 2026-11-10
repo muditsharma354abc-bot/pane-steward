@@ -17,7 +17,9 @@ LIGHT THEME (chat-first — no character meshes; no gizmos / DevUI):
 - quiz-lifelines.png         — Lifeline icon row
 - quiz-friend.png            — Practice friend · offline pick
 - quiz-feedback.png          — Correct feedback
-- quiz-end.png               — End card (scripted test run)
+- quiz-end.png               — End card (human-paced test run)
+- quiz-wrong.png             — Wrong feedback (✗ Wrong)
+- quiz-amber.png             — Timer ring amber in the last 10 seconds
 - quiz-xr-question.png       — Break Quiz in immersive IWER
 
 Skipped (not in README):
