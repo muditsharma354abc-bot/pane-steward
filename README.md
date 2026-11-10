@@ -4,10 +4,10 @@
 
 **Demo Steward runs fully offline.** Cold start opens a Start card — **Demo Steward · offline, no API key** — then a 3-step guide (open a tab, Keep all, Undo last). The product works without any third-party AI service (the take-away test). **Chat AI is an optional live mode.**
 
-**Chatbot-only steward** (no character meshes / avatars / billboards). **Chat docks on the right**; **vertical icon tabs on the left** (≤3, slide in/out) with content in the middle. Demo Steward or optional live Chat AI opens / focuses / closes tabs. A live **status pill** in the dock header narrates what is happening. **Connectors tray:** Web (public URL fetch into a pane only); Calendar / Mail / Notes (demo stubs — **no OAuth**). **Keep all** / **Undo last**.
+**Chatbot-only steward** (no character meshes / avatars / billboards). **Chat docks on the right**; **vertical icon tabs on the left** (≤3, slide in/out) with a one-line title and subtitle (for example **Web** / example.com). Demo Steward or optional live Chat AI opens / focuses / closes tabs. One **Did N · Kept N** counter and a **status pill** in the dock header narrate what is happening. The connector note and intent row sit behind a **More** toggle. Chat placeholder: **Ask Steward…**. **Connectors tray:** Web (public URL fetch into a pane only); Calendar / Mail / Notes (demo stubs — **no OAuth**). **Keep all** / **Undo last**.
 
 **Live:** https://muditsharma354abc-bot.github.io/pane-steward/?demo=1  
-**Live build:** commit `52da364` · bundle `index-kIrzp-lN.js`
+**Live build:** commit `de64364` · bundle `index-Cm26fliJ.js`
 
 ![Start card: Demo Steward offline, no API key](screens/light-cold-start.png)
 
@@ -15,10 +15,12 @@
 
 | Region | Role |
 |--------|------|
-| **Left** | Vertical tab strip — select / × remove / + add (max 3, slide in/out, full labels on a 228px rail) |
+| **Left** | Vertical tab strip — one-line title + subtitle, select / × remove / + add (max 3, slide in/out, 228px rail) |
 | **Middle** | Focused tab content |
-| **Right** | Chat dock — mode chip + status pill in the header, speech, connectors, chips, Keep-all / Undo-last, input |
+| **Right** | Chat dock — mode chip + status pill + Did/Kept counter in the header, speech, connectors, More (note + intents), Keep-all / Undo-last, Ask Steward… |
 | **Top** | Enter XR / a11y (Contrast, A−/A+, Sound, Options) |
+
+In the immersive IWER room the same layout is used: tabs on the left, panes in the centre, dock column on the right, with Keep / Undo lifted so they do not overlap the panes.
 
 ## Modes
 
@@ -38,8 +40,8 @@ Warm light theme (no pure white or black). Text contrast: body ink **14.2:1**, m
 ## Eyes + hands
 
 - **Pinch** is the primary action; every action also has a **button twin**.
-- **Gaze highlight** on tabs and connector chips, and a **600 ms long-hold** Options popover, are shipped and verified on the 2D page only, each with a button twin.
-- Panes render in light mode inside the IWER immersive room. XR layout, XR hover, and XR pinch-hold are a follow-up and are not verified.
+- **Gaze highlight** on tabs and connector chips, and a **600 ms long-hold** Options popover, are shipped and verified on the 2D page, each with a button twin.
+- In immersive IWER, gaze hover on Keep is reported by the emulator but is not yet visually captured. XR pinch-hold does not open Options yet — long-hold is 2D-only. This has not been tested on a Quest headset.
 
 ## Accessibility
 
@@ -65,18 +67,19 @@ npm run dev:runtime
 |------|--------|
 | `light-cold-start.png` | Start card · Demo Steward offline, no API key |
 | `light-coldstart-guide.png` | 3-step guide after Start (open a tab, Keep all, Undo last) |
-| `light-panes.png` | Vertical icon tabs + middle content from Prep |
+| `light-panes.png` | Title + subtitle tabs + middle content from Prep |
 | `light-connectors.png` | Connectors tray on the right chat dock |
 | `light-keep.png` | After Keep all |
 | `light-undo.png` | Undo last |
 | `light-gaze.png` | Gaze highlight on tabs and connector chips (2D) |
 | `light-longhold.png` | 600 ms long-hold Options popover (2D) |
 | `light-web.png` | Web Connect + Web pane |
-| `light-xr-cold-start.png` | Immersive IWER view (XR layout fix pending) |
+| `light-xr-cold-start.png` | Immersive IWER view |
+| `light-xr-panes.png` | Immersive IWER view |
 
 ## Current gaps
 
-- Gaze highlight and the 600 ms long-hold Options popover are verified on the 2D page only. Panes render in light mode inside the IWER immersive room; XR layout, XR hover, and XR pinch-hold are a follow-up and are not verified.
+- Gaze highlight and the 600 ms long-hold Options popover are verified on the 2D page, each with a button twin. In immersive IWER, gaze hover on Keep is reported by the emulator but is not yet visually captured; XR pinch-hold does not open Options yet (long-hold is 2D-only). Not tested on a Quest headset.
 - Calendar / Mail / Notes remain demo Connect stubs (no OAuth).
 - Web Connect is public URL / fetch into a pane only — no account takeover or RPA.
 
