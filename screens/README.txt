@@ -19,9 +19,9 @@ LIGHT THEME (chat-first — no character meshes; no gizmos / DevUI):
 - quiz-feedback.png          — Correct feedback
 - quiz-wrong.png             — Wrong feedback (✗ Wrong)
 - quiz-amber.png             — Timer ring amber in the last 10 seconds
+- quiz-end.png               — End card (test run), tabs restored
 - quiz-xr-question.png       — Break Quiz in immersive IWER (Brief / Now / Web)
+- quiz-xr-long.png           — Long question wraps to 3 lines, immersive IWER view
 
 Skipped (not in README):
 - quiz-levelup.png           — duplicate of the next question
-- quiz-end.png               — deferred; a played end card is coming (do not use the 0-pts capture)
-- quiz-xr-long.png           — pre-freeze capture; shows a Done tab
