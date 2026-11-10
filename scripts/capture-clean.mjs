@@ -47,7 +47,9 @@ const forceClick = async (sel) => {
   }, sel);
 };
 
-const cleanChrome = async () => page.evaluate(() => {
+const cleanChrome = async () => {
+  await page.mouse.move(0, 0);
+  await page.evaluate(() => {
   try {
     if (window.IWER_DEVICE) {
       window.IWER_DEVICE.controlMode = 'programmatic';
@@ -68,7 +70,8 @@ const cleanChrome = async () => page.evaluate(() => {
     el.style.visibility = 'visible';
     el.style.opacity = '1';
   }
-});
+  });
+};
 
 await page.goto(U, { waitUntil: 'networkidle', timeout: 90000 });
 await page.waitForSelector('#cold-start', { timeout: 30000 });

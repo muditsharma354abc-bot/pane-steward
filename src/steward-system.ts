@@ -95,6 +95,7 @@ export class StewardSystem extends createSystem({
   private undidCount = 0;
   private tabSeq = 0;
   private guideIdx = -1;
+  private xrOn = false;
 
   init(): void {
     captureKeyFromUrl();
@@ -120,6 +121,7 @@ export class StewardSystem extends createSystem({
 
     this.panes.onChange = () => this.syncTabUi();
     this.buildWorldBtns();
+    this.wireXrVis();
     this.bindHud();
     this.applyA11y(true);
     this.paintSession();
@@ -142,6 +144,21 @@ export class StewardSystem extends createSystem({
     }
     this.panes.tick(typeof dt === 'number' && dt > 0 ? dt : 1 / 60);
     this.pollWorld();
+  }
+
+
+  private wireXrVis(): void {
+    const xr = (this.world as unknown as { renderer?: { xr?: { addEventListener?: (e: string, fn: () => void) => void } } }).renderer?.xr;
+    xr?.addEventListener?.('sessionstart', () => { this.xrOn = true; });
+    xr?.addEventListener?.('sessionend', () => {
+      this.xrOn = false;
+      for (const b of this.buttons.values()) b.label.mesh.visible = false;
+    });
+    for (const b of this.buttons.values()) b.label.mesh.visible = false;
+  }
+
+  private setVis(b: WorldBtn | undefined, on: boolean): void {
+    if (b) b.label.mesh.visible = !!(on && this.xrOn);
   }
 
   private pollWorld(): void {
@@ -179,7 +196,7 @@ export class StewardSystem extends createSystem({
       twin: '#btn-start', w: 0.44, h: 0.14,
     });
     this.guideBtn = this.makeWorldBtn('guide', 'Next', [0, 1.02, -0.7], () => this.advanceGuide(), { twin: '#btn-guide-next' });
-    this.guideBtn.label.mesh.visible = false;
+    this.setVis(this.guideBtn, false);
     this.muteBtn = this.makeWorldBtn('mute', 'Sound', [-0.18, 0.78, -0.76], () => this.toggleMute(), { twin: '#btn-mute' });
     this.makeWorldBtn('options', 'Options', [0.18, 0.78, -0.76], () => this.openOptions({ kind: 'generic' }), { twin: '#btn-options' });
     this.makeWorldBtn('demo', 'Demo', [0, 0.78, -0.76], () => void this.runDemoTour(), { twin: '#btn-demo' });
@@ -258,14 +275,14 @@ export class StewardSystem extends createSystem({
   }
 
   private setWorldBtnActive(on: boolean): void {
-    if (this.keepBtn) this.keepBtn.label.mesh.visible = on;
-    if (this.undoBtn) this.undoBtn.label.mesh.visible = on || !!this.lastKeepBefore;
+    this.setVis(this.keepBtn, on);
+    this.setVis(this.undoBtn, on || !!this.lastKeepBefore);
   }
 
   private flashWorldBtn(kind: 'keep' | 'undo'): void {
     const b = kind === 'keep' ? this.keepBtn : this.undoBtn;
     if (!b) return;
-    b.label.mesh.visible = true;
+    this.setVis(b, true);
     b.gazed = true;
     this.drawWorldBtn(b);
     b.label.mesh.scale.setScalar(1.12);
@@ -341,7 +358,7 @@ export class StewardSystem extends createSystem({
     const cold = el<HTMLElement>('cold-start');
     cold.hidden = true;
     document.body.classList.remove('onboarding');
-    this.startBtn.label.mesh.visible = false;
+    this.setVis(this.startBtn, false);
     this.showGuide(0);
     this.setStatus('Guide · open a tab, then Keep all, then Undo last');
   }
@@ -351,13 +368,13 @@ export class StewardSystem extends createSystem({
     const box = el<HTMLElement>('guide');
     if (i < 0 || i >= GUIDE.length) {
       box.hidden = true;
-      this.guideBtn.label.mesh.visible = false;
+      this.setVis(this.guideBtn, false);
       return;
     }
     box.hidden = false;
     el('guide-step').textContent = GUIDE[i].step;
     el('guide-body').textContent = GUIDE[i].body;
-    this.guideBtn.label.mesh.visible = true;
+    this.setVis(this.guideBtn, true);
   }
 
   private advanceGuide(): void {
@@ -379,9 +396,9 @@ export class StewardSystem extends createSystem({
 
   private paintMute(): void {
     const btn = el<HTMLButtonElement>('btn-mute');
-    const on = !isMuted();
-    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    btn.textContent = on ? 'Sound' : 'Muted';
+    const muted = isMuted();
+    btn.setAttribute('aria-pressed', muted ? 'true' : 'false');
+    btn.textContent = muted ? 'Muted' : 'Sound';
     this.muteBtn.title = btn.textContent;
     this.drawWorldBtn(this.muteBtn);
   }
@@ -511,7 +528,7 @@ export class StewardSystem extends createSystem({
     for (let i = 0; i < this.tabWorld.length; i++) {
       const b = this.tabWorld[i];
       const p = listed[i];
-      b.label.mesh.visible = !!p;
+      this.setVis(b, !!p);
       if (p) {
         b.title = (p.title.slice(0, 14) || p.id);
         b.twin = `.tab-item[data-id="${p.id}"]`;
@@ -603,8 +620,8 @@ export class StewardSystem extends createSystem({
     el<HTMLButtonElement>('btn-keep').disabled = !on;
     const canUndo = on || !!this.lastKeepBefore;
     el<HTMLButtonElement>('btn-undo').disabled = !canUndo;
-    if (this.keepBtn) this.keepBtn.label.mesh.visible = on;
-    if (this.undoBtn) this.undoBtn.label.mesh.visible = canUndo;
+    this.setVis(this.keepBtn, on);
+    this.setVis(this.undoBtn, canUndo);
   }
 
   private async onUserText(): Promise<void> {
