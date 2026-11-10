@@ -94,6 +94,7 @@ await page.evaluate(() => {
   const c = document.getElementById('cold-start');
   if (c) c.hidden = true;
   document.body.classList.remove('onboarding');
+  try { window.__ps?.showGuide?.(-1); } catch {}
 });
 
 await page.waitForTimeout(300);
@@ -181,8 +182,21 @@ const hideHudForXr = async () => {
     try {
       if (window.IWER_DEVICE) {
         window.IWER_DEVICE.controlMode = 'programmatic';
+        for (const side of ['left', 'right']) {
+          if (window.IWER_DEVICE.hands?.[side]) window.IWER_DEVICE.hands[side].connected = false;
+        }
       }
     } catch {}
+    const hideHost = (root) => {
+      root.querySelectorAll('*').forEach((node) => {
+        if (node.shadowRoot) hideHost(node.shadowRoot);
+        const t = (node.textContent || '').replace(/\s+/g, ' ').trim();
+        if (t === 'Remote Control Active' || (t.includes('Remote Control Active') && t.length < 48)) {
+          node.style.setProperty('display', 'none', 'important');
+        }
+      });
+    };
+    hideHost(document);
     for (const el of document.querySelectorAll('body > div')) {
       if (el.shadowRoot) el.style.setProperty('display', 'none', 'important');
     }

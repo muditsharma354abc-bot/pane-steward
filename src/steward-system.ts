@@ -177,8 +177,10 @@ export class StewardSystem extends createSystem({
   }
 
   private applyWorldVis(): void {
+    const guideOpen = !!(document.getElementById('guide') && !el<HTMLElement>('guide').hidden);
     for (const b of this.buttons.values()) {
-      b.label.mesh.visible = !!(b.wantVisible && this.xrOn);
+      const extra = b.kind === 'guide' ? guideOpen : true;
+      b.label.mesh.visible = !!(b.wantVisible && this.xrOn && extra);
     }
   }
 

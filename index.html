@@ -22,7 +22,7 @@
         --panel: #FAF8F4;
         --shadow: 0 14px 36px rgba(42,38,34,0.14), 0 2px 8px rgba(42,38,34,0.06);
         --dock-w: min(340px, 32vw);
-        --tabs-w: 200px;
+        --tabs-w: 228px;
       }
       html.hc {
         --mute: #322C26; --ink: #1A1612; --accent: #9A3D14; --accent-ink: #9A3D14;
@@ -120,17 +120,18 @@
       #mode-chip,#status-line,#session{flex:0 0 auto}
       #status-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       #session{font-size:var(--fs-sm);color:var(--mute);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      #speech{font-size:var(--fs-sm);color:var(--ink);background:var(--speech-bg);border-radius:16px;padding:10px 12px;border:1px solid transparent;line-height:1.35}
+      #speech{font-size:var(--fs-sm);color:var(--ink);background:var(--speech-bg);border-radius:16px;padding:10px 12px;border:1px solid transparent;line-height:1.35;flex:1 1 auto;min-height:0;overflow:auto}
       html.hc #speech{border-color:var(--btn-border)}
       #reason{font-size:var(--fs-sm);color:var(--accent-ink);min-height:1.2em;max-height:1.35em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 0 auto;margin:0 0 4px}
       #connectors{display:flex;flex-wrap:wrap;gap:8px}
       #connectors button{flex:1 1 42%;min-height:48px;padding:8px;font-size:var(--fs-sm)}
       #btn-more{width:100%;font-weight:700}
-      #more-panel{display:flex;flex-direction:column;gap:8px}
+      #more-panel{display:flex;flex-direction:column;gap:8px;flex:0 1 auto;min-height:0;overflow:auto}
       #more-panel[hidden]{display:none !important}
       #connectors-note{font-size:var(--fs-sm);color:var(--mute);line-height:1.25}
       #chips{display:flex;flex-wrap:wrap;gap:8px}
       #chips button{flex:1 1 42%;min-height:48px;padding:8px;font-size:var(--fs-sm)}
+      #keep-row,#chat-bar,#btn-more,#connectors,#reason,#mode-chip,#status-line,#session{flex-shrink:0}
       #keep-row{display:flex;gap:8px}
       #keep-row button{flex:1;font-weight:700}
       #keep-row button:not(:disabled){border-color:var(--accent)}
