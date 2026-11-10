@@ -1166,7 +1166,7 @@ export class StewardSystem extends createSystem({
       [-0.40, 0.98, -1.12], [0.40, 0.98, -1.12],
     ];
     spots.forEach((pos, i) => {
-      const b = this.makeWorldBtn(`quiz-ans-${i}`, `Option ${i + 1}`, pos, () => this.answerQuiz(i), { w: 0.38, h: 0.14 });
+      const b = this.makeWorldBtn(`quiz-ans-${i}`, '', pos, () => this.answerQuiz(i), { w: 0.38, h: 0.14 });
       this.setVis(b, false);
       this.quizAnswers.push(b);
     });
