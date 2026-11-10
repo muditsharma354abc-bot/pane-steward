@@ -228,14 +228,14 @@ try {
   await page.waitForTimeout(320);
   await cleanChrome();
   await shot('quiz-wrong.png');
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(2700);
 
   await clickAnswer(true);
   await page.waitForTimeout(280);
   await cleanChrome();
   await shot('quiz-feedback.png');
   await shot('quiz-levelup.png');
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(2700);
 
   for (let i = 0; i < 14; i++) {
     const info = await page.evaluate(() => ({
@@ -251,7 +251,7 @@ try {
     if (end && !end.hidden) return true;
     const n = parseInt(document.getElementById('quiz-timer-num')?.textContent || '99', 10);
     return n <= 10 && !document.getElementById('quiz-play')?.hidden;
-  }, { timeout: 70000 }).catch((e) => errs.push('quiz-amber wait: ' + e.message));
+  }, { timeout: 120000 }).catch((e) => errs.push('quiz-amber wait: ' + e.message));
   const playOn = await page.evaluate(() => {
     const play = document.getElementById('quiz-play');
     return !!(play && !play.hidden);
@@ -265,7 +265,7 @@ try {
   await page.waitForFunction(() => {
     const end = document.getElementById('quiz-end');
     return !!(end && !end.hidden);
-  }, { timeout: 25000 }).catch((e) => errs.push('quiz-end wait: ' + e.message));
+  }, { timeout: 40000 }).catch((e) => errs.push('quiz-end wait: ' + e.message));
   await page.waitForTimeout(250);
   await cleanChrome();
   await shot('quiz-end.png');

@@ -47,6 +47,8 @@ export class BreakQuiz {
   friendReveal = '';
   friendStartedAt = 0;
   friendMs = 10_000;
+  private clockPausedAt = 0;
+  private pauseDepth = 0;
   queue: QuizQuestion[] = [];
   idx = 0;
   pausedTabs = 0;
@@ -71,6 +73,8 @@ export class BreakQuiz {
     this.help = '';
     this.friendThinking = false;
     this.friendReveal = '';
+    this.clockPausedAt = 0;
+    this.pauseDepth = 0;
     this.queue = shuffle(QUIZ_PACK, daySeed());
     this.idx = 0;
     this.bestStreak = 0;
@@ -86,14 +90,35 @@ export class BreakQuiz {
     return Math.max(6000, 16000 - (this.level - 1) * 2000);
   }
 
+  now(): number {
+    return this.clockPausedAt || performance.now();
+  }
+
+  pauseClock(): void {
+    if (this.pauseDepth === 0) this.clockPausedAt = performance.now();
+    this.pauseDepth += 1;
+  }
+
+  resumeClock(): void {
+    if (this.pauseDepth === 0) return;
+    this.pauseDepth -= 1;
+    if (this.pauseDepth === 0 && this.clockPausedAt) {
+      const dt = performance.now() - this.clockPausedAt;
+      if (this.startedAt) this.startedAt += dt;
+      if (this.qStartedAt) this.qStartedAt += dt;
+      if (this.friendStartedAt) this.friendStartedAt += dt;
+      this.clockPausedAt = 0;
+    }
+  }
+
   sessionLeft(): number {
     if (!this.startedAt) return this.sessionMs;
-    return Math.max(0, this.sessionMs - (performance.now() - this.startedAt));
+    return Math.max(0, this.sessionMs - (this.now() - this.startedAt));
   }
 
   questionLeft(): number {
     if (!this.qStartedAt) return this.questionBudget();
-    return Math.max(0, this.questionBudget() - (performance.now() - this.qStartedAt));
+    return Math.max(0, this.questionBudget() - (this.now() - this.qStartedAt));
   }
 
   sessionOver(): boolean {

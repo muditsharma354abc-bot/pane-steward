@@ -31,9 +31,9 @@ function shortenStatus(s: string): string {
   if (/^Break ·/.test(s)) return 'Break · 60s, tabs back';
   if (/^Break quiz/.test(s)) return 'Break quiz · pick one';
   if (/^Video Call/.test(s)) return 'Video Call a Friend';
-  if (/^Back to work/.test(s)) return s;
+  if (/^Back to work/.test(s) || /^Undid last Keep/.test(s) || /^Undid pending/.test(s)) return s;
   if (/^Steering tabs/.test(s) || /^Steer:/.test(s)) return s.length > 32 ? s.slice(0, 32) : s;
-  if (s.length > 36) return s.slice(0, 36);
+  if (s.length > 48) return s.slice(0, 48);
   return s;
 }
 
@@ -125,6 +125,7 @@ export class StewardSystem extends createSystem({
   private guideIdx = -1;
   private xrOn = false;
   private quiz = new BreakQuiz();
+  private quizHold = false;
   private workPause: import('./tools.js').PaneSnap[] | null = null;
   private xrStatus!: WorldBtn;
   private quizPanel!: WorldBtn;
@@ -257,8 +258,13 @@ export class StewardSystem extends createSystem({
     if (this.quiz.phase === 'question') {
       const thinking = this.quiz.friendThinking;
       this.quiz.tickFriend();
-      if (thinking && !this.quiz.friendThinking) this.paintQuiz();
-      if (this.quiz.sessionOver()) this.showEndCard();
+      if (thinking && !this.quiz.friendThinking) {
+        this.paintQuiz();
+        this.quiz.pauseClock();
+        window.setTimeout(() => this.quiz.resumeClock(), 2500);
+      }
+      if (this.quizHold) this.paintQuizMeta();
+      else if (this.quiz.sessionOver()) this.showEndCard();
       else if (this.quiz.questionOver()) {
         const r = this.quiz.miss();
         this.setStatus(r.done ? 'Break · time up' : 'Time up · next question');
@@ -1078,7 +1084,7 @@ export class StewardSystem extends createSystem({
       this.setPendingUi(false);
       this.setSpeech('Undo last Keep — tabs restored.');
       this.setReason('');
-      this.setStatus('Undid last Keep — tabs restored');
+      this.setStatus('Undid last Keep — tabs restored.');
     }
   }
 
@@ -1202,7 +1208,7 @@ export class StewardSystem extends createSystem({
     this.setQuizWorldVis(false);
     this.setVis(this.quizPanel, true);
     this.paintQuiz();
-    this.setStatus(`Break over · ${this.quiz.score} pts`);
+    this.setStatus(`Back to work: ${this.quiz.pausedTabs} tabs restored.`);
   }
 
   finishBreak(): void {
@@ -1224,18 +1230,24 @@ export class StewardSystem extends createSystem({
   }
 
   answerQuiz(i: number): void {
+    if (this.quizHold) return;
     const r = this.quiz.answer(i);
     if (!r) return;
+    this.quizHold = true;
+    this.quiz.pauseClock();
     document.querySelectorAll<HTMLButtonElement>('#quiz-choices button').forEach((b, n) => {
       b.classList.toggle('ans-ok', r.correct && n === i);
       b.classList.toggle('ans-bad', !r.correct && n === i);
+      b.disabled = true;
     });
     this.showQuizFeedback(r);
     this.setStatus(r.correct ? `Correct · Lv ${this.quiz.level}` : 'Wrong');
     window.setTimeout(() => {
+      this.quizHold = false;
+      this.quiz.resumeClock();
       if (r.done || this.quiz.phase === 'end') this.showEndCard();
       else this.paintQuiz();
-    }, 850);
+    }, 2500);
   }
 
   useQuizLife(id: LifelineId): void {
