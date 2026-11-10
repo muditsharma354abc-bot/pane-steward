@@ -28,8 +28,9 @@ function shortenStatus(s: string): string {
   if (/^Tour done/.test(s)) return 'Tour done · offline twin';
   if (/^Demo Steward/.test(s)) return 'Demo Steward · offline';
   if (/^Pending Keep/.test(s)) return s.replace('Keep all', 'Keep');
-  if (/^Break ·/.test(s)) return 'Break · 60s, tabs back';
-  if (/^Break quiz/.test(s)) return 'Break quiz · pick one';
+  if (/^Quiz Game Mode · pick/.test(s)) return 'Quiz Game Mode · pick one';
+  if (/^Quiz Game Mode · time up/.test(s)) return 'Quiz Game Mode · time up';
+  if (/^Quiz Game Mode ·/.test(s)) return 'Quiz Game Mode · 60s, tabs back';
   if (/^Video Call/.test(s)) return 'Video Call a Friend';
   if (/^Back to work/.test(s) || /^Undid last Keep/.test(s) || /^Undid pending/.test(s)) return s;
   if (/^Steering tabs/.test(s) || /^Steer:/.test(s)) return s.length > 32 ? s.slice(0, 32) : s;
@@ -267,7 +268,7 @@ export class StewardSystem extends createSystem({
       else if (this.quiz.sessionOver()) this.showEndCard();
       else if (this.quiz.questionOver()) {
         const r = this.quiz.miss();
-        this.setStatus(r.done ? 'Break · time up' : 'Time up · next question');
+        this.setStatus(r.done ? 'Quiz Game Mode · time up' : 'Time up · next question');
         if (r.done) this.showEndCard();
         else this.paintQuiz();
       } else {
@@ -1158,7 +1159,7 @@ export class StewardSystem extends createSystem({
   }
 
   private buildQuizWorld(): void {
-    this.quizPanel = this.makeWorldBtn('quiz-panel', 'Break quiz', [0, 1.56, -1.12], () => {}, { w: 1.10, h: 0.46 });
+    this.quizPanel = this.makeWorldBtn('quiz-panel', 'Quiz Game Mode', [0, 1.56, -1.12], () => {}, { w: 1.10, h: 0.46 });
     this.setVis(this.quizPanel, false);
     const spots: [number, number, number][] = [
       [-0.40, 1.16, -1.12], [0.40, 1.16, -1.12],
@@ -1191,14 +1192,14 @@ export class StewardSystem extends createSystem({
     this.setQuizWorldVis(true);
     this.syncTabUi();
     this.paintQuiz();
-    this.setStatus('Break · 60s, then tabs return');
-    this.setSpeech('Take a 60-second brain break, then Pane Steward puts your tabs back exactly where you left them.');
+    this.setStatus('Quiz Game Mode · 60s, then tabs return');
+    this.setSpeech('Quiz Game Mode: a 60-second productivity game. Pane Steward pauses your tabs and puts them back exactly where you left them.');
   }
 
   beginBreak(): void {
     if (this.quiz.phase !== 'start') return;
     this.quiz.begin();
-    this.setStatus('Break quiz · pick an answer');
+    this.setStatus('Quiz Game Mode · pick an answer');
     this.paintQuiz();
   }
 
@@ -1328,7 +1329,7 @@ export class StewardSystem extends createSystem({
     if (timer) timer.setAttribute('aria-label', `${sec} seconds left`);
     if (this.quizPanel && this.quiz.phase === 'question') {
       const q = this.quiz.current();
-      this.quizPanel.title = q ? q.prompt : 'Break quiz';
+      this.quizPanel.title = q ? q.prompt : 'Quiz Game Mode';
       this.quizPanel.subtitle = `${sec}s · ${this.quiz.score} pts`;
       this.drawWorldBtn(this.quizPanel);
     }
@@ -1400,7 +1401,7 @@ export class StewardSystem extends createSystem({
         this.drawWorldBtn(b);
         this.setVis(b, true);
       });
-      this.quizPanel.title = q ? q.prompt : 'Break quiz';
+      this.quizPanel.title = q ? q.prompt : 'Quiz Game Mode';
       this.quizPanel.subtitle = `${Math.ceil(this.quiz.sessionLeft() / 1000)}s · ${this.quiz.score} pts`;
       this.drawWorldBtn(this.quizPanel);
       this.setVis(this.quizPanel, true);
@@ -1426,8 +1427,8 @@ export class StewardSystem extends createSystem({
       if (back) back.textContent = `Back to work: ${this.quiz.pausedTabs} tabs restored.`;
     }
     if (this.quiz.phase === 'start') {
-      this.quizPanel.title = 'Break quiz';
-      this.quizPanel.subtitle = '60-second break';
+      this.quizPanel.title = 'Quiz Game Mode';
+      this.quizPanel.subtitle = '60-second game';
       this.drawWorldBtn(this.quizPanel);
     }
   }
