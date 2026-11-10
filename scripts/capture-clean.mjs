@@ -100,7 +100,9 @@ await page.waitForTimeout(300);
 await cleanChrome();
 await shot('light-connectors.png');
 
-await page.click('#chips [data-intent="prep"]');
+await forceClick('#btn-more');
+await page.waitForTimeout(120);
+await forceClick('#chips [data-intent="prep"]');
 await page.waitForFunction(() => !document.getElementById('btn-keep')?.disabled, { timeout: 25000 }).catch((e) => errs.push('wait keep: ' + e.message));
 await page.waitForTimeout(1600);
 await cleanChrome();

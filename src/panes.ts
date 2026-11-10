@@ -1,7 +1,8 @@
 import { Group, type MeshBasicMaterial } from '@iwsdk/core';
-import { Label, panel, para, text } from './label.js';
+import { Label, panel, para } from './label.js';
 import { C } from './style.js';
 import type { PaneSnap } from './tools.js';
+import { paneCaption } from './titles.js';
 
 export interface Pane {
   id: string;
@@ -12,12 +13,12 @@ export interface Pane {
   root: Group;
 }
 
-const SLOT_X = [-0.36, 0.02, 0.40];
-const SLOT_Y = 1.18;
-const SLOT_Z = -1.02;
-const PW = 0.36, PH = 0.40;
-const PITCH = -0.16;
-const YAW = [0.18, 0, -0.18];
+const SLOT_X = [-0.46, 0, 0.46];
+const SLOT_Y = 1.32;
+const SLOT_Z = -1.18;
+const PW = 0.42, PH = 0.50;
+const PITCH = -0.12;
+const YAW = [0.10, 0, -0.10];
 
 interface Target {
   x: number;
@@ -190,7 +191,7 @@ export class PaneManager {
         x: SLOT_X[i] ?? 0,
         y: SLOT_Y,
         z: p.focused ? SLOT_Z + 0.07 : SLOT_Z,
-        s: p.focused ? 1.07 : 0.94,
+        s: p.focused ? 1.03 : 0.96,
       });
       p.root.rotation.set(PITCH, YAW[i] ?? 0, 0);
       this.draw(p);
@@ -200,8 +201,12 @@ export class PaneManager {
   private draw(p: Pane): void {
     p.label.draw((g, W, H) => {
       panel(g, W, H, C.pane, p.focused ? C.accent : undefined);
-      text(g, p.title, 40, 52, 40, C.ink, 700, W - 72);
-      para(g, p.body || ' ', 40, 98, 32, W - 80, C.mute);
+      const maxW = W - 80;
+      const cap = paneCaption(p.title, p.id);
+      let y = para(g, cap.heading, 40, 40, 36, maxW, C.ink, 700);
+      if (cap.subtitle) y = para(g, cap.subtitle, 40, y + 4, 26, maxW, C.mute, 600);
+      y += 12;
+      para(g, p.body || ' ', 40, y, 24, maxW, C.mute, 400);
     });
   }
 }

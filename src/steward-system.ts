@@ -16,6 +16,7 @@ import { IS_DEMO, loadA11y, loadStats, saveA11y, saveStats, type A11yPrefs, type
 import { isMuted, sfxClick, sfxWhoosh, toggleMuted } from './sfx.js';
 import { applyContrast, C } from './style.js';
 import type { PaneSnap, ToolBatch, ToolCall } from './tools.js';
+import { paneCaption } from './titles.js';
 
 function el<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
@@ -56,6 +57,7 @@ type WorldBtn = {
   gazed: boolean;
   twin: string;
   title: string;
+  subtitle?: string;
   wantVisible: boolean;
 };
 
@@ -91,6 +93,9 @@ export class StewardSystem extends createSystem({
   private startBtn!: WorldBtn;
   private guideBtn!: WorldBtn;
   private muteBtn!: WorldBtn;
+  private optsPanel!: WorldBtn;
+  private optsAddBtn!: WorldBtn;
+  private optsDismissBtn!: WorldBtn;
   private tabWorld: WorldBtn[] = [];
   private lastIntent = '';
   private undidCount = 0;
@@ -165,9 +170,8 @@ export class StewardSystem extends createSystem({
   private markChromeWorldVisible(): void {
     for (const b of this.buttons.values()) {
       if (
-        b.kind === 'start' || b.kind === 'mute' || b.kind === 'options' ||
-        b.kind === 'demo' || b.kind === 'add' ||
-        b.kind.startsWith('conn-') || b.kind.startsWith('intent-')
+        b.kind === 'start' || b.kind === 'add' ||
+        b.kind.startsWith('conn-') || b.kind === 'intent-next'
       ) b.wantVisible = true;
     }
   }
@@ -213,23 +217,29 @@ export class StewardSystem extends createSystem({
   }
 
   private buildWorldBtns(): void {
-    this.keepBtn = this.makeWorldBtn('keep', 'Keep all', [-0.18, 0.9, -0.76], () => this.keep(), { twin: '#btn-keep' });
-    this.undoBtn = this.makeWorldBtn('undo', 'Undo last', [0.18, 0.9, -0.76], () => this.undo(), { twin: '#btn-undo' });
-    this.startBtn = this.makeWorldBtn('start', 'Start', [0, 1.22, -0.7], () => this.beginOnboarding(), {
+    this.keepBtn = this.makeWorldBtn('keep', 'Keep all', [0.92, 1.00, -0.95], () => this.keep(), { twin: '#btn-keep', w: 0.30, h: 0.09 });
+    this.undoBtn = this.makeWorldBtn('undo', 'Undo last', [0.92, 0.88, -0.95], () => this.undo(), { twin: '#btn-undo', w: 0.30, h: 0.09 });
+    this.startBtn = this.makeWorldBtn('start', 'Start', [0, 1.24, -0.78], () => this.beginOnboarding(), {
       twin: '#btn-start', w: 0.44, h: 0.14,
     });
-    this.guideBtn = this.makeWorldBtn('guide', 'Next', [0, 1.02, -0.7], () => this.advanceGuide(), { twin: '#btn-guide-next' });
+    this.guideBtn = this.makeWorldBtn('guide', 'Next', [0, 1.08, -0.78], () => this.advanceGuide(), { twin: '#btn-guide-next' });
     this.setVis(this.guideBtn, false);
-    this.muteBtn = this.makeWorldBtn('mute', 'Sound', [-0.18, 0.78, -0.76], () => this.toggleMute(), { twin: '#btn-mute' });
-    this.makeWorldBtn('options', 'Options', [0.18, 0.78, -0.76], () => this.openOptions({ kind: 'generic' }), { twin: '#btn-options' });
-    this.makeWorldBtn('demo', 'Demo', [0, 0.78, -0.76], () => void this.runDemoTour(), { twin: '#btn-demo' });
-    this.makeWorldBtn('add', '+ Tab', [-0.54, 0.98, -0.8], () => this.addBlankTab(), {
-      twin: '#btn-tab-add',
+    this.muteBtn = this.makeWorldBtn('mute', 'Sound', [-0.92, 0.76, -0.95], () => this.toggleMute(), { twin: '#btn-mute', w: 0.28, h: 0.08 });
+    this.makeWorldBtn('options', 'Options', [0.92, 0.64, -0.95], () => this.openOptions({ kind: 'generic' }), { twin: '#btn-options', w: 0.30, h: 0.08 });
+    this.makeWorldBtn('demo', 'Demo', [-0.92, 0.64, -0.95], () => void this.runDemoTour(), { twin: '#btn-demo', w: 0.28, h: 0.08 });
+    this.makeWorldBtn('add', '+ Tab', [-0.92, 0.98, -0.95], () => this.addBlankTab(), {
+      twin: '#btn-tab-add', w: 0.30, h: 0.09,
       hold: () => this.openOptions({ kind: 'generic' }),
     });
+    this.optsPanel = this.makeWorldBtn('opts-panel', 'Options', [0, 1.26, -0.70], () => {}, { w: 0.48, h: 0.16 });
+    this.setVis(this.optsPanel, false);
+    this.optsAddBtn = this.makeWorldBtn('opts-add', 'Add tab', [0, 1.16, -0.69], () => { this.addBlankTab(); this.closeOptions(); }, { w: 0.40, h: 0.08 });
+    this.setVis(this.optsAddBtn, false);
+    this.optsDismissBtn = this.makeWorldBtn('opts-dismiss', 'Close', [0, 1.06, -0.69], () => this.closeOptions(), { twin: '#opts-dismiss', w: 0.40, h: 0.08 });
+    this.setVis(this.optsDismissBtn, false);
     for (let i = 0; i < 3; i++) {
       const slot = i;
-      const b = this.makeWorldBtn(`tab-${i}`, 'Tab', [-0.54, 1.32 - i * 0.1, -0.8], () => {
+      const b = this.makeWorldBtn(`tab-${i}`, 'Tab', [-0.92, 1.46 - i * 0.14, -0.95], () => {
         const p = this.panes.listed()[slot];
         if (p) {
           this.panes.focus(p.id);
@@ -241,6 +251,7 @@ export class StewardSystem extends createSystem({
           if (p) this.openOptions({ kind: 'tab', id: p.id, title: p.title });
           else this.openOptions({ kind: 'generic' });
         },
+        w: 0.30, h: 0.12,
       });
       b.label.mesh.visible = false;
       this.tabWorld.push(b);
@@ -248,9 +259,10 @@ export class StewardSystem extends createSystem({
     const conns: ConnectorId[] = ['web', 'calendar', 'mail', 'notes'];
     const labels = ['Web', 'Cal · demo', 'Mail · demo', 'Notes · demo'];
     conns.forEach((id, i) => {
-      this.makeWorldBtn(`conn-${id}`, labels[i], [0.52, 1.28 - i * 0.1, -0.8], () => this.toggleConnector(id), {
+      this.makeWorldBtn(`conn-${id}`, labels[i], [0.92, 1.46 - i * 0.11, -0.95], () => this.toggleConnector(id), {
         twin: `#connectors [data-conn="${id}"]`,
         hold: () => this.openOptions({ kind: 'conn', id }),
+        w: 0.30, h: 0.09,
       });
     });
     const intents: [string, string, string][] = [
@@ -259,9 +271,11 @@ export class StewardSystem extends createSystem({
       ['next', 'Next', "What's next"],
       ['web', 'Web', 'Lookup https://example.com'],
     ];
-    intents.forEach(([key, title, text], i) => {
-      this.makeWorldBtn(`intent-${key}`, title, [-0.24 + i * 0.16, 0.66, -0.76], () => void this.handleIntent(text), {
+    intents.forEach(([key, title, text]) => {
+      const pos: [number, number, number] = key === 'next' ? [0.92, 0.76, -0.95] : [0, -2, -0.95];
+      this.makeWorldBtn(`intent-${key}`, title, pos, () => void this.handleIntent(text), {
         twin: `#chips [data-intent="${key}"]`,
+        w: 0.30, h: 0.09,
       });
     });
     this.setWorldBtnActive(false);
@@ -285,6 +299,9 @@ export class StewardSystem extends createSystem({
       twin: extra?.twin ?? '', title,
     };
     this.buttons.set(entity.index, b);
+    const mesh = label.mesh as unknown as { onPointerEnter?: () => void; onPointerLeave?: () => void };
+    mesh.onPointerEnter = () => { b.gazed = true; this.drawWorldBtn(b); this.syncTwinGaze(b.twin, true); };
+    mesh.onPointerLeave = () => { b.gazed = false; this.drawWorldBtn(b); this.syncTwinGaze(b.twin, false); };
     this.drawWorldBtn(b);
     return b;
   }
@@ -293,7 +310,12 @@ export class StewardSystem extends createSystem({
     const accent = b.gazed ? C.accent : undefined;
     b.label.draw((g, W, H) => {
       panel(g, W, H, b.gazed ? C.glassHi : C.pane, accent);
-      text(g, b.title, W / 2, H / 2, Math.round(H * 0.38), C.ink, 700, W - 36, 'center');
+      if (b.subtitle) {
+        text(g, b.title, W / 2, H * 0.38, Math.round(H * 0.28), C.ink, 700, W - 36, 'center');
+        text(g, b.subtitle, W / 2, H * 0.68, Math.round(H * 0.22), C.mute, 500, W - 36, 'center');
+      } else {
+        text(g, b.title, W / 2, H / 2, Math.round(H * 0.36), C.ink, 700, W - 36, 'center');
+      }
     });
   }
 
@@ -335,6 +357,17 @@ export class StewardSystem extends createSystem({
     el<HTMLButtonElement>('btn-guide-next').onclick = () => this.advanceGuide();
     el<HTMLButtonElement>('btn-mute').onclick = () => this.toggleMute();
     el<HTMLButtonElement>('btn-options').onclick = () => this.openOptions({ kind: 'generic' });
+    const moreBtn = document.getElementById('btn-more') as HTMLButtonElement | null;
+    if (moreBtn) {
+      bindGaze(moreBtn);
+      moreBtn.onclick = () => {
+        const panel = el<HTMLElement>('more-panel');
+        const open = panel.hidden;
+        panel.hidden = !open;
+        moreBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        moreBtn.textContent = open ? 'Less' : 'More';
+      };
+    }
     el<HTMLButtonElement>('opts-dismiss').onclick = () => this.closeOptions();
 
     for (const id of ['btn-enter', 'btn-demo', 'btn-keep', 'btn-undo', 'btn-send', 'btn-start', 'btn-guide-next', 'btn-mute', 'btn-options', 'btn-contrast', 'btn-text-down', 'btn-text-up', 'opts-dismiss']) {
@@ -464,10 +497,18 @@ export class StewardSystem extends createSystem({
       add(this.connectors[id] ? `${name} · on` : `Connect ${name}`, () => this.toggleConnector(id));
     });
     pop.hidden = false;
+    this.optsPanel.title = title.textContent || 'Options';
+    this.drawWorldBtn(this.optsPanel);
+    this.setVis(this.optsPanel, true);
+    this.setVis(this.optsAddBtn, true);
+    this.setVis(this.optsDismissBtn, true);
   }
 
   private closeOptions(): void {
     el<HTMLElement>('opts-pop').hidden = true;
+    this.setVis(this.optsPanel, false);
+    this.setVis(this.optsAddBtn, false);
+    this.setVis(this.optsDismissBtn, false);
   }
 
   private toggleConnector(id: ConnectorId): void {
@@ -520,7 +561,20 @@ export class StewardSystem extends createSystem({
       const icon = document.createElement('span');
       icon.className = 'tab-icon';
       icon.textContent = tabIcon(p.id);
-      sel.append(icon, document.createTextNode(p.title || p.id));
+      const cap = paneCaption(p.title, p.id);
+      const textWrap = document.createElement('span');
+      textWrap.className = 'tab-text';
+      const head = document.createElement('span');
+      head.className = 'tab-heading';
+      head.textContent = cap.heading;
+      textWrap.append(head);
+      if (cap.subtitle) {
+        const sub = document.createElement('span');
+        sub.className = 'tab-sub';
+        sub.textContent = cap.subtitle;
+        textWrap.append(sub);
+      }
+      sel.append(icon, textWrap);
       sel.title = p.title;
       sel.setAttribute('aria-label', p.title);
       bindGazeHold(sel, {
@@ -554,7 +608,9 @@ export class StewardSystem extends createSystem({
       const p = listed[i];
       this.setVis(b, !!p);
       if (p) {
-        b.title = (p.title.slice(0, 14) || p.id);
+        const cap = paneCaption(p.title, p.id);
+        b.title = cap.heading;
+        b.subtitle = cap.subtitle;
         b.twin = `.tab-item[data-id="${p.id}"]`;
         b.gazed = false;
         this.drawWorldBtn(b);
@@ -564,17 +620,24 @@ export class StewardSystem extends createSystem({
     const stage = el<HTMLElement>('pane-stage');
     const empty = el<HTMLElement>('pane-stage-empty');
     const title = el<HTMLElement>('pane-stage-title');
+    const sub = document.getElementById('pane-stage-sub') as HTMLElement | null;
     const body = el<HTMLElement>('pane-stage-body');
     const f = this.panes.focused();
     if (!f) {
       empty.hidden = false;
       title.hidden = true;
+      if (sub) sub.hidden = true;
       body.hidden = true;
     } else {
       empty.hidden = true;
       title.hidden = false;
       body.hidden = false;
-      title.textContent = f.title;
+      const cap = paneCaption(f.title, f.id);
+      title.textContent = cap.heading;
+      if (sub) {
+        sub.hidden = !cap.subtitle;
+        sub.textContent = cap.subtitle;
+      }
       body.textContent = f.body || ' ';
     }
     stage.classList.toggle('dimmed', false);
@@ -851,7 +914,7 @@ export class StewardSystem extends createSystem({
     setTimeout(() => stage.classList.remove('dimmed', 'kept'), 700);
     this.setSpeech('Kept all. Ready for the next ask.');
     this.setReason('');
-    this.setStatus(`Kept ${this.stats.kept} · Undid ${this.undidCount}`);
+    this.setStatus('Kept all — ready for the next ask');
   }
 
   undo(): void {
@@ -866,7 +929,7 @@ export class StewardSystem extends createSystem({
       this.setPendingUi(false);
       this.setSpeech('Undone — tabs restored.');
       this.setReason('');
-      this.setStatus(`Undid pending · Kept ${this.stats.kept} · Undid ${this.undidCount}`);
+      this.setStatus('Undid pending — tabs restored');
       return;
     }
     if (this.lastKeepBefore) {
@@ -878,7 +941,7 @@ export class StewardSystem extends createSystem({
       this.setPendingUi(false);
       this.setSpeech('Undo last Keep — tabs restored.');
       this.setReason('');
-      this.setStatus(`Undid last Keep · Kept ${this.stats.kept} · Undid ${this.undidCount}`);
+      this.setStatus('Undid last Keep — tabs restored');
     }
   }
 

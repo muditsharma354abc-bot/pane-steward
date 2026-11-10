@@ -74,9 +74,9 @@ export function text(
 }
 
 export function para(
-  g: CanvasRenderingContext2D, s: string, x: number, y: number, size: number, maxW: number, color = C.ink,
+  g: CanvasRenderingContext2D, s: string, x: number, y: number, size: number, maxW: number, color = C.ink, weight = 400,
 ): number {
-  g.font = `400 ${size}px ${FONT}`; g.fillStyle = color; g.textAlign = 'left'; g.textBaseline = 'top';
+  g.font = `${weight} ${size}px ${FONT}`; g.fillStyle = color; g.textAlign = 'left'; g.textBaseline = 'top';
   let line = '', yy = y;
   for (const w of s.split(/\s+/)) {
     if (g.measureText(`${line}${w} `).width > maxW && line) {
