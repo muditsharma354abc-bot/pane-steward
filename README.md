@@ -5,7 +5,6 @@
 **Chatbot-only steward** (no character meshes / avatars / billboards). **Chat docks on the right**; **vertical pane tabs on the left** with content in the middle (≤3 tabs, easy add/remove). Chat AI (live) or **Demo Steward** (offline twin) opens / focuses / closes tabs. **Connectors tray:** Web (public URL fetch into a pane), Calendar / Mail / Notes (demo Connect stubs — **no OAuth**). Live **status line** narrates what is happening. **Keep all** / **Undo last** with focus dim on Keep.
 
 **Live:** https://muditsharma354abc-bot.github.io/pane-steward/?demo=1  
-**Live build:** commit `8162d09` · bundle `index-Crs9tMh1.js`
 
 
 ## Layout
@@ -30,9 +29,11 @@
 
 Shipped interaction (document only what Judges scored as proven — **not** a blanket Meta “Designing for eyes and hands” compliance claim, and **not** Quest-proven):
 
-- **Pinch** is the primary action; every action also has an a11y / HUD **button twin** (Keep-all / Undo-last included)
-- No fluff tooltips except critical
-- **Gaze** highlight/select and **long-hold** options: planned / IWER-unproven — **do not claim** as shipped
+- **Pinch** is the primary action; every action also has an a11y / HUD **button twin**
+- **Gaze highlight** on tabs and connector chips: IWSDK `Hovered` (ray / head-gaze / canvas pointer) plus 2D `:hover` / `.gaze`
+- **Long-hold (~600 ms)** pinch-hold or pointer-hold opens an Options popover (add/remove tab, Connect). Button twins included.
+- Soft WebAudio click on Keep and reverse whoosh on Undo, with a Sound / Muted twin
+- Default **light** theme (no pure white/black); Contrast is a high-contrast light variant
 
 ## Accessibility
 
@@ -54,20 +55,24 @@ npm run dev:runtime
 
 ## Screenshots
 
-Prefer `clean-*.png` under `screens/` and `/workspace/meta-vr/screens/pane-steward/`:
+Prefer `light-*.png` under `screens/` and `/workspace/meta-vr/screens/pane-steward/`:
 
 | File | Shows |
 |------|--------|
-| `clean-cold-start.png` | Right chat dock + left tabs empty + Demo Steward banner + status |
-| `clean-panes.png` | Vertical tabs + middle content from Prep call |
-| `clean-keep.png` | Keep all pending |
-| `clean-web.png` | Web Connect + Web pane |
-| `clean-undo.png` | Undo last |
-| `clean-demo-badge.png` | Offline twin chip |
+| `light-cold-start.png` | Warm Start card · Demo Steward offline · no API key |
+| `light-coldstart-guide.png` | 3-step guide after Start |
+| `light-connectors.png` | Connectors tray on the right chat dock |
+| `light-panes.png` | Vertical icon tabs + middle content from Prep |
+| `light-keep.png` | Keep all pending |
+| `light-web.png` | Web Connect + Web pane |
+| `light-undo.png` | Undo last |
+| `light-demo-badge.png` | Offline twin chip |
+| `light-gaze.png` | Gaze highlight on a tab |
+| `light-longhold.png` | Long-hold options popover |
 
 ## Current gaps
 
-- Pinch + button twins are shipped for **IWER** local preview; **not yet tested on-device** (Quest headset). Gaze / long-hold remain unproven — do not claim.
+- Hands-first IWER preview is wired (pinch + poke + head-gaze simulation). Not claimed as on-device verified.
 - Calendar / Mail / Notes remain demo Connect stubs (no OAuth).
 - Web Connect is public URL / fetch into a pane only — no account takeover / RPA.
 

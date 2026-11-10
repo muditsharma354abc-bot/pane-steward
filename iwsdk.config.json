@@ -14,6 +14,7 @@
       "offer": "always",
       "features": {
         "handTracking": true,
+        "gazeTracking": { "required": false },
         "anchors": { "required": false },
         "planeDetection": { "required": false },
         "hitTest": { "required": false },
@@ -37,7 +38,8 @@
       "grabbing": true,
       "physics": false,
       "sceneUnderstanding": false,
-      "environmentRaycast": false
+      "environmentRaycast": false,
+      "gaze": { "suppressWhenDirectPointerActive": true, "showDebugReticle": false }
     }
   },
   "dev": {
@@ -47,6 +49,7 @@
       "activation": "always",
       "injectOnBuild": true,
       "environment": "sunlit_living_room"
-    }
+    },
+    "targetDevicePreview": { "gazeSimulation": "head" }
   }
 }

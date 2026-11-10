@@ -1,5 +1,6 @@
 import {
-  createSystem, Group, HemisphereLight, Mesh, MeshStandardMaterial, PlaneGeometry,
+  Color, createSystem, DirectionalLight, Fog, Group, HemisphereLight,
+  Hovered, Mesh, MeshStandardMaterial, PlaneGeometry,
   PokeInteractable, Pressed, RayInteractable, type Entity,
 } from '@iwsdk/core';
 import {
@@ -10,7 +11,9 @@ import { demoPlan } from './demo-steward.js';
 import { Label, panel, text } from './label.js';
 import { captureKeyFromUrl, chatWithTools, hasLiveKey } from './llm.js';
 import { PaneManager } from './panes.js';
+import { bindGaze, bindGazeHold, HOLD_MS, tabIcon } from './pointers.js';
 import { IS_DEMO, loadA11y, loadStats, saveA11y, saveStats, type A11yPrefs, type SessionStats } from './state.js';
+import { isMuted, sfxClick, sfxWhoosh, toggleMuted } from './sfx.js';
 import { applyContrast, C } from './style.js';
 import type { PaneSnap, ToolBatch, ToolCall } from './tools.js';
 
@@ -42,15 +45,34 @@ function speakHud(text: string): void {
   } catch { /* TTS optional */ }
 }
 
-type WorldBtn = { label: Label; entity: Entity; action: () => void; kind: 'keep' | 'undo' };
+type WorldBtn = {
+  label: Label;
+  entity: Entity;
+  action: () => void;
+  hold?: () => void;
+  kind: string;
+  pressAt: number;
+  held: boolean;
+  gazed: boolean;
+  twin: string;
+  title: string;
+};
+
+const GUIDE = [
+  { step: '1 / 3 · Open a tab', body: 'Tap + or Prep to open a pane.' },
+  { step: '2 / 3 · Keep all', body: 'Keep all accepts the panes chat opened.' },
+  { step: '3 / 3 · Undo last', body: 'Undo last restores the previous panes.' },
+];
 
 /**
  * Chat-first Pane Steward — chatbot only, no character meshes.
  * Layout: left vertical tabs · middle content · right chat dock.
- * Connectors: Web (public) + Calendar/Mail/Notes demo stubs.
+ * Gaze: IWSDK Hovered on world twins + CSS .gaze on 2D HUD.
+ * Long-hold: ~600 ms Pressed (pinch) or pointer-hold opens Options.
  */
 export class StewardSystem extends createSystem({
   pressed: { required: [RayInteractable, Pressed] },
+  hovered: { required: [RayInteractable, Hovered] },
 }) {
   private panes = new PaneManager();
   private room = new Group();
@@ -65,22 +87,32 @@ export class StewardSystem extends createSystem({
   private buttons = new Map<number, WorldBtn>();
   private keepBtn!: WorldBtn;
   private undoBtn!: WorldBtn;
+  private startBtn!: WorldBtn;
+  private guideBtn!: WorldBtn;
+  private muteBtn!: WorldBtn;
+  private tabWorld: WorldBtn[] = [];
   private lastIntent = '';
   private undidCount = 0;
   private tabSeq = 0;
+  private guideIdx = -1;
 
   init(): void {
     captureKeyFromUrl();
     this.refreshModeChip();
     this.paintConnectors();
     const scene = this.world.scene;
-    scene.add(new HemisphereLight(0xf0f4ff, 0x404858, 1.4));
+    scene.background = new Color(C.bg);
+    scene.fog = new Fog(C.bg, 6, 16);
+    scene.add(new HemisphereLight(C.hemiSky, C.hemiGround, 1.2));
+    const sun = new DirectionalLight('#EFE4D4', 0.42);
+    sun.position.set(0.7, 2.5, 1.3);
+    scene.add(sun);
     scene.add(this.room);
     this.room.add(this.panes.root);
 
     const floor = new Mesh(
       new PlaneGeometry(2.4, 2.4),
-      new MeshStandardMaterial({ color: '#1a1f2a', roughness: 1, transparent: true, opacity: 0.35 }),
+      new MeshStandardMaterial({ color: C.floor, roughness: 1, transparent: true, opacity: 0.4 }),
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = 0.01;
@@ -91,84 +123,156 @@ export class StewardSystem extends createSystem({
     this.bindHud();
     this.applyA11y(true);
     this.paintSession();
+    this.paintMute();
     this.syncTabUi();
     this.setStatus(hasLiveKey()
-      ? 'Live chat · ready — ask to open ≤3 tabs'
-      : 'Demo Steward · offline twin — chat still drives tabs');
+      ? 'Live chat · ready — ask to open up to 3 tabs'
+      : 'Demo Steward · offline twin — no API key needed');
     if (import.meta.env.DEV) (window as unknown as { __ps: unknown }).__ps = this;
-
-    this.queries.pressed.subscribe('qualify', (e) => {
-      const b = this.buttons.get(e.index);
-      if (b) b.action();
-    });
-
-    if (IS_DEMO) setTimeout(() => void this.runDemoTour(), 900);
   }
 
-  update(_dt: number): void {
+  update(dt: number): void {
     if (this.frozen) return;
     if (document.visibilityState === 'hidden') {
       this.frozen = true;
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') this.frozen = false;
       }, { once: true });
+      return;
+    }
+    this.panes.tick(typeof dt === 'number' && dt > 0 ? dt : 1 / 60);
+    this.pollWorld();
+  }
+
+  private pollWorld(): void {
+    for (const b of this.buttons.values()) {
+      const hovered = b.entity.hasComponent(Hovered);
+      if (hovered !== b.gazed) {
+        b.gazed = hovered;
+        this.drawWorldBtn(b);
+        this.syncTwinGaze(b.twin, hovered);
+      }
+      const pressed = b.entity.hasComponent(Pressed);
+      if (pressed) {
+        if (!b.pressAt) b.pressAt = performance.now();
+        if (b.hold && !b.held && performance.now() - b.pressAt >= HOLD_MS) {
+          b.held = true;
+          b.hold();
+        }
+      } else if (b.pressAt) {
+        if (!b.held) b.action();
+        b.pressAt = 0;
+        b.held = false;
+      }
     }
   }
 
+  private syncTwinGaze(sel: string, on: boolean): void {
+    if (!sel) return;
+    document.querySelectorAll(sel).forEach((n) => n.classList.toggle('gaze', on));
+  }
+
   private buildWorldBtns(): void {
-    this.keepBtn = this.makeWorldBtn('keep', '👍 Keep all', C.keep, () => this.keep());
-    this.undoBtn = this.makeWorldBtn('undo', '👎 Undo last', C.undo, () => this.undo());
-    this.keepBtn.label.mesh.position.set(-0.18, 0.92, -0.78);
-    this.undoBtn.label.mesh.position.set(0.18, 0.92, -0.78);
+    this.keepBtn = this.makeWorldBtn('keep', 'Keep all', [-0.18, 0.9, -0.76], () => this.keep(), { twin: '#btn-keep' });
+    this.undoBtn = this.makeWorldBtn('undo', 'Undo last', [0.18, 0.9, -0.76], () => this.undo(), { twin: '#btn-undo' });
+    this.startBtn = this.makeWorldBtn('start', 'Start', [0, 1.22, -0.7], () => this.beginOnboarding(), {
+      twin: '#btn-start', w: 0.44, h: 0.14,
+    });
+    this.guideBtn = this.makeWorldBtn('guide', 'Next', [0, 1.02, -0.7], () => this.advanceGuide(), { twin: '#btn-guide-next' });
+    this.guideBtn.label.mesh.visible = false;
+    this.muteBtn = this.makeWorldBtn('mute', 'Sound', [-0.18, 0.78, -0.76], () => this.toggleMute(), { twin: '#btn-mute' });
+    this.makeWorldBtn('options', 'Options', [0.18, 0.78, -0.76], () => this.openOptions({ kind: 'generic' }), { twin: '#btn-options' });
+    this.makeWorldBtn('demo', 'Demo', [0, 0.78, -0.76], () => void this.runDemoTour(), { twin: '#btn-demo' });
+    this.makeWorldBtn('add', '+ Tab', [-0.54, 0.98, -0.8], () => this.addBlankTab(), {
+      twin: '#btn-tab-add',
+      hold: () => this.openOptions({ kind: 'generic' }),
+    });
+    for (let i = 0; i < 3; i++) {
+      const slot = i;
+      const b = this.makeWorldBtn(`tab-${i}`, 'Tab', [-0.54, 1.32 - i * 0.1, -0.8], () => {
+        const p = this.panes.listed()[slot];
+        if (p) {
+          this.panes.focus(p.id);
+          this.setStatus(`Focusing ${p.title}`);
+        }
+      }, {
+        hold: () => {
+          const p = this.panes.listed()[slot];
+          if (p) this.openOptions({ kind: 'tab', id: p.id, title: p.title });
+          else this.openOptions({ kind: 'generic' });
+        },
+      });
+      b.label.mesh.visible = false;
+      this.tabWorld.push(b);
+    }
+    const conns: ConnectorId[] = ['web', 'calendar', 'mail', 'notes'];
+    const labels = ['Web', 'Cal · demo', 'Mail · demo', 'Notes · demo'];
+    conns.forEach((id, i) => {
+      this.makeWorldBtn(`conn-${id}`, labels[i], [0.52, 1.28 - i * 0.1, -0.8], () => this.toggleConnector(id), {
+        twin: `#connectors [data-conn="${id}"]`,
+        hold: () => this.openOptions({ kind: 'conn', id }),
+      });
+    });
+    const intents: [string, string, string][] = [
+      ['prep', 'Prep', 'Prep call'],
+      ['park', 'Park', 'Park this'],
+      ['next', 'Next', "What's next"],
+      ['web', 'Web', 'Lookup https://example.com'],
+    ];
+    intents.forEach(([key, title, text], i) => {
+      this.makeWorldBtn(`intent-${key}`, title, [-0.24 + i * 0.16, 0.66, -0.76], () => void this.handleIntent(text), {
+        twin: `#chips [data-intent="${key}"]`,
+      });
+    });
     this.setWorldBtnActive(false);
   }
 
   private makeWorldBtn(
-    kind: 'keep' | 'undo',
+    kind: string,
     title: string,
-    accent: string,
+    pos: [number, number, number],
     action: () => void,
+    extra?: { hold?: () => void; twin?: string; w?: number; h?: number },
   ): WorldBtn {
-    const label = new Label(0.28, 0.08);
-    this.drawWorldBtn(label, title, accent, false);
+    const label = new Label(extra?.w ?? 0.26, extra?.h ?? 0.08);
     const entity = this.world.createTransformEntity(label.mesh);
     entity.addComponent(RayInteractable);
     entity.addComponent(PokeInteractable);
-    const b: WorldBtn = { label, entity, action, kind };
+    label.mesh.position.set(pos[0], pos[1], pos[2]);
+    const b: WorldBtn = {
+      label, entity, action, hold: extra?.hold, kind,
+      pressAt: 0, held: false, gazed: false,
+      twin: extra?.twin ?? '', title,
+    };
     this.buttons.set(entity.index, b);
-    label.mesh.userData.btn = title;
-    label.mesh.userData.accent = accent;
+    this.drawWorldBtn(b);
     return b;
   }
 
-  private drawWorldBtn(label: Label, title: string, accent: string, hot: boolean): void {
-    label.draw((g, W, H) => {
-      panel(g, W, H, hot ? '#2a3348' : C.pane, accent);
-      text(g, title, W / 2, H / 2, Math.round(H * 0.38), C.ink, 700, W - 40, 'center');
+  private drawWorldBtn(b: WorldBtn): void {
+    const accent = b.gazed ? C.accent : undefined;
+    b.label.draw((g, W, H) => {
+      panel(g, W, H, b.gazed ? C.glassHi : C.pane, accent);
+      text(g, b.title, W / 2, H / 2, Math.round(H * 0.38), C.ink, 700, W - 36, 'center');
     });
   }
 
   private setWorldBtnActive(on: boolean): void {
-    for (const b of [this.keepBtn, this.undoBtn]) {
-      if (!b) continue;
-      b.label.mesh.visible = on;
-      const title = b.label.mesh.userData.btn as string;
-      const accent = b.label.mesh.userData.accent as string;
-      this.drawWorldBtn(b.label, title, accent, false);
-    }
+    if (this.keepBtn) this.keepBtn.label.mesh.visible = on;
+    if (this.undoBtn) this.undoBtn.label.mesh.visible = on || !!this.lastKeepBefore;
   }
 
   private flashWorldBtn(kind: 'keep' | 'undo'): void {
     const b = kind === 'keep' ? this.keepBtn : this.undoBtn;
     if (!b) return;
     b.label.mesh.visible = true;
-    const title = b.label.mesh.userData.btn as string;
-    const accent = b.label.mesh.userData.accent as string;
-    this.drawWorldBtn(b.label, title, accent, true);
+    b.gazed = true;
+    this.drawWorldBtn(b);
     b.label.mesh.scale.setScalar(1.12);
     setTimeout(() => {
       b.label.mesh.scale.setScalar(1);
-      this.drawWorldBtn(b.label, title, accent, false);
+      b.gazed = false;
+      this.drawWorldBtn(b);
     }, 500);
   }
 
@@ -183,9 +287,23 @@ export class StewardSystem extends createSystem({
     el<HTMLInputElement>('chat-input').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') void this.onUserText();
     });
-    el<HTMLButtonElement>('btn-tab-add').onclick = () => this.addBlankTab();
+    bindGazeHold(el('btn-tab-add'), {
+      onClick: () => this.addBlankTab(),
+      onHold: () => this.openOptions({ kind: 'generic' }),
+    });
+    el<HTMLButtonElement>('btn-start').onclick = () => this.beginOnboarding();
+    el<HTMLButtonElement>('btn-guide-next').onclick = () => this.advanceGuide();
+    el<HTMLButtonElement>('btn-mute').onclick = () => this.toggleMute();
+    el<HTMLButtonElement>('btn-options').onclick = () => this.openOptions({ kind: 'generic' });
+    el<HTMLButtonElement>('opts-dismiss').onclick = () => this.closeOptions();
+
+    for (const id of ['btn-enter', 'btn-demo', 'btn-keep', 'btn-undo', 'btn-send', 'btn-start', 'btn-guide-next', 'btn-mute', 'btn-options', 'btn-contrast', 'btn-text-down', 'btn-text-up', 'opts-dismiss']) {
+      const n = document.getElementById(id);
+      if (n) bindGaze(n);
+    }
 
     document.querySelectorAll<HTMLButtonElement>('#chips [data-intent]').forEach((b) => {
+      bindGaze(b);
       b.onclick = () => {
         const map: Record<string, string> = {
           prep: 'Prep call',
@@ -198,29 +316,11 @@ export class StewardSystem extends createSystem({
     });
 
     document.querySelectorAll<HTMLButtonElement>('#connectors [data-conn]').forEach((b) => {
-      b.onclick = () => {
-        const id = (b.dataset.conn || '') as ConnectorId;
-        if (!id) return;
-        this.connectors[id] = !this.connectors[id];
-        saveConnectors(this.connectors);
-        this.paintConnectors();
-        const on = this.connectors[id];
-        const label = id[0].toUpperCase() + id.slice(1);
-        this.setStatus(
-          on
-            ? (id === 'web'
-              ? 'Connected Web · public pages only (no account login)'
-              : `Connected ${label} · demo stub (no OAuth)`)
-            : `${label} disconnected`,
-        );
-        this.setSpeech(
-          on
-            ? (id === 'web'
-              ? 'Web connected — send a URL or tap Lookup web. Public fetch into a tab only.'
-              : `${label} connected (demo) — ask about ${id}. No real account tokens in this build.`)
-            : `${label} off.`,
-        );
-      };
+      const id = (b.dataset.conn || '') as ConnectorId;
+      bindGazeHold(b, {
+        onClick: () => this.toggleConnector(id),
+        onHold: () => this.openOptions({ kind: 'conn', id }),
+      });
     });
 
     el<HTMLButtonElement>('btn-contrast').onclick = () => {
@@ -237,48 +337,188 @@ export class StewardSystem extends createSystem({
     };
   }
 
+  private beginOnboarding(): void {
+    const cold = el<HTMLElement>('cold-start');
+    cold.hidden = true;
+    document.body.classList.remove('onboarding');
+    this.startBtn.label.mesh.visible = false;
+    this.showGuide(0);
+    this.setStatus('Guide · open a tab, then Keep all, then Undo last');
+  }
+
+  private showGuide(i: number): void {
+    this.guideIdx = i;
+    const box = el<HTMLElement>('guide');
+    if (i < 0 || i >= GUIDE.length) {
+      box.hidden = true;
+      this.guideBtn.label.mesh.visible = false;
+      return;
+    }
+    box.hidden = false;
+    el('guide-step').textContent = GUIDE[i].step;
+    el('guide-body').textContent = GUIDE[i].body;
+    this.guideBtn.label.mesh.visible = true;
+  }
+
+  private advanceGuide(): void {
+    const next = this.guideIdx + 1;
+    if (next >= GUIDE.length) {
+      this.showGuide(-1);
+      this.setStatus('Ready · chat steers up to 3 panes');
+      if (IS_DEMO) void this.runDemoTour();
+      return;
+    }
+    this.showGuide(next);
+  }
+
+  private toggleMute(): void {
+    toggleMuted();
+    this.paintMute();
+    this.setStatus(isMuted() ? 'Sound off' : 'Sound on');
+  }
+
+  private paintMute(): void {
+    const btn = el<HTMLButtonElement>('btn-mute');
+    const on = !isMuted();
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.textContent = on ? 'Sound' : 'Muted';
+    this.muteBtn.title = btn.textContent;
+    this.drawWorldBtn(this.muteBtn);
+  }
+
+  private openOptions(ctx: { kind: 'generic' } | { kind: 'tab'; id: string; title: string } | { kind: 'conn'; id: ConnectorId }): void {
+    const pop = el<HTMLElement>('opts-pop');
+    const actions = el<HTMLDivElement>('opts-actions');
+    const title = el('opts-title');
+    actions.innerHTML = '';
+    const add = (label: string, fn: () => void): void => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      bindGaze(b);
+      b.onclick = () => { fn(); this.closeOptions(); };
+      actions.append(b);
+    };
+    if (ctx.kind === 'tab') {
+      title.textContent = ctx.title;
+      add(`Remove “${ctx.title}”`, () => {
+        this.panes.close(ctx.id);
+        this.setStatus(`Closed ${ctx.title}`);
+      });
+      add('Add tab', () => this.addBlankTab());
+    } else if (ctx.kind === 'conn') {
+      const name = ctx.id === 'web' ? 'Web' : `${ctx.id[0].toUpperCase()}${ctx.id.slice(1)} · demo`;
+      title.textContent = 'Connect';
+      add(this.connectors[ctx.id] ? `Disconnect ${name}` : `Connect ${name}`, () => this.toggleConnector(ctx.id));
+    } else {
+      title.textContent = 'Options';
+      add('Add tab', () => this.addBlankTab());
+      const f = this.panes.focused();
+      if (f) add(`Remove “${f.title}”`, () => {
+        this.panes.close(f.id);
+        this.setStatus(`Closed ${f.title}`);
+      });
+    }
+    (['web', 'calendar', 'mail', 'notes'] as ConnectorId[]).forEach((id) => {
+      const name = id === 'web' ? 'Web' : `${id[0].toUpperCase()}${id.slice(1)} · demo`;
+      add(this.connectors[id] ? `${name} · on` : `Connect ${name}`, () => this.toggleConnector(id));
+    });
+    pop.hidden = false;
+  }
+
+  private closeOptions(): void {
+    el<HTMLElement>('opts-pop').hidden = true;
+  }
+
+  private toggleConnector(id: ConnectorId): void {
+    if (!id) return;
+    this.connectors[id] = !this.connectors[id];
+    saveConnectors(this.connectors);
+    this.paintConnectors();
+    const on = this.connectors[id];
+    const label = id[0].toUpperCase() + id.slice(1);
+    this.setStatus(
+      on
+        ? (id === 'web'
+          ? 'Connected Web · public pages only'
+          : `Connected ${label} · demo stub (no OAuth)`)
+        : `${label} disconnected`,
+    );
+    this.setSpeech(
+      on
+        ? (id === 'web'
+          ? 'Web connected — send a URL or tap Web. Public fetch into a tab only.'
+          : `${label} connected (demo) — no real account tokens.`)
+        : `${label} off.`,
+    );
+  }
+
   private paintConnectors(): void {
     document.querySelectorAll<HTMLButtonElement>('#connectors [data-conn]').forEach((b) => {
       const id = (b.dataset.conn || '') as ConnectorId;
       const on = !!this.connectors[id];
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
-      const name = id[0].toUpperCase() + id.slice(1);
-      b.textContent = on
-        ? (id === 'web' ? 'Web · On' : `${name} · Demo`)
-        : `${name} · Connect`;
+      if (id === 'web') b.textContent = on ? 'Web · on' : 'Web';
+      else {
+        const name = id[0].toUpperCase() + id.slice(1);
+        b.textContent = on ? `${name} · demo` : `${name === 'Calendar' ? 'Cal' : name} · demo`;
+      }
     });
   }
 
-  /** Sync left tab strip + middle stage from PaneManager. */
   private syncTabUi(): void {
     const list = el<HTMLDivElement>('tab-list');
     list.innerHTML = '';
-    for (const p of this.panes.panes) {
+    const listed = this.panes.listed();
+    for (const p of listed) {
       const row = document.createElement('div');
       row.className = 'tab-item' + (p.focused ? ' active' : '');
+      row.dataset.id = p.id;
       const sel = document.createElement('button');
       sel.type = 'button';
       sel.className = 'tab-select';
-      sel.textContent = p.title.slice(0, 22) || p.id;
+      const icon = document.createElement('span');
+      icon.className = 'tab-icon';
+      icon.textContent = tabIcon(p.id);
+      sel.append(icon, document.createTextNode(p.title.slice(0, 16) || p.id));
       sel.title = p.title;
-      sel.onclick = () => {
-        this.panes.focus(p.id);
-        this.setStatus(`Focusing ${p.title}`);
-      };
+      bindGazeHold(sel, {
+        onClick: () => {
+          this.panes.focus(p.id);
+          this.setStatus(`Focusing ${p.title}`);
+        },
+        onHold: () => this.openOptions({ kind: 'tab', id: p.id, title: p.title }),
+      });
       const close = document.createElement('button');
       close.type = 'button';
       close.className = 'tab-close';
       close.setAttribute('aria-label', `Remove ${p.title}`);
       close.textContent = '×';
+      bindGaze(close);
       close.onclick = (ev) => {
         ev.stopPropagation();
-        this.panes.close(p.id);
-        this.setStatus(`Closed ${p.title}`);
+        row.classList.add('leaving');
+        setTimeout(() => {
+          this.panes.close(p.id);
+          this.setStatus(`Closed ${p.title}`);
+        }, 180);
       };
       row.append(sel, close);
       list.append(row);
     }
-    el<HTMLButtonElement>('btn-tab-add').disabled = this.panes.panes.length >= 3;
+    el<HTMLButtonElement>('btn-tab-add').disabled = listed.length >= 3;
+
+    for (let i = 0; i < this.tabWorld.length; i++) {
+      const b = this.tabWorld[i];
+      const p = listed[i];
+      b.label.mesh.visible = !!p;
+      if (p) {
+        b.title = (p.title.slice(0, 14) || p.id);
+        b.twin = `.tab-item[data-id="${p.id}"]`;
+        b.gazed = false;
+        this.drawWorldBtn(b);
+      }
+    }
 
     const stage = el<HTMLElement>('pane-stage');
     const empty = el<HTMLElement>('pane-stage-empty');
@@ -300,13 +540,13 @@ export class StewardSystem extends createSystem({
   }
 
   private addBlankTab(): void {
-    if (this.panes.panes.length >= 3) {
-      this.setStatus('Max 3 tabs — close one or Keep/Undo');
+    if (this.panes.listed().length >= 3) {
+      this.setStatus('You already have 3 tabs — close one with × to add another.');
       return;
     }
     this.tabSeq += 1;
     const id = `tab-${this.tabSeq}`;
-    this.panes.open(id, `Tab ${this.tabSeq}`, 'Empty tab — chat to fill, or type an ask.');
+    this.panes.open(id, `Tab ${this.tabSeq}`, 'Empty tab — chat to fill.');
     this.setStatus(`Added Tab ${this.tabSeq}`);
   }
 
@@ -320,15 +560,11 @@ export class StewardSystem extends createSystem({
     contrastBtn.setAttribute('aria-pressed', this.a11y.highContrast ? 'true' : 'false');
     contrastBtn.textContent = this.a11y.highContrast ? 'Contrast ✓' : 'Contrast';
     applyContrast(this.a11y.highContrast);
+    this.world.scene.background = new Color(C.bg);
+    if (this.world.scene.fog) (this.world.scene.fog as Fog).color = new Color(C.bg);
     if (redrawWorld) {
       this.panes.redrawAll();
-      for (const b of [this.keepBtn, this.undoBtn]) {
-        if (!b) continue;
-        const title = b.label.mesh.userData.btn as string;
-        const accent = b.kind === 'keep' ? C.keep : C.undo;
-        b.label.mesh.userData.accent = accent;
-        this.drawWorldBtn(b.label, title, accent, false);
-      }
+      for (const b of this.buttons.values()) this.drawWorldBtn(b);
     }
   }
 
@@ -337,9 +573,8 @@ export class StewardSystem extends createSystem({
     this.mode = live ? 'live' : 'demo';
     const chip = el<HTMLDivElement>('mode-chip');
     chip.textContent = live
-      ? 'Live chat — tabs from your API host (not website control)'
-      : 'Demo Steward · offline twin — chat still drives ≤3 tabs';
-    chip.style.borderColor = live ? C.keep : C.accent;
+      ? 'Live chat — tabs only, not website control'
+      : 'Demo Steward · offline — no API key';
     chip.dataset.mode = this.mode;
   }
 
@@ -350,8 +585,8 @@ export class StewardSystem extends createSystem({
 
   private paintSession(): void {
     el<HTMLDivElement>('session').textContent =
-      `Steward did ${this.stats.did} · you kept ${this.stats.kept}` +
-      (this.undidCount ? ` · undid ${this.undidCount}` : '');
+      `Did ${this.stats.did} · Kept ${this.stats.kept}` +
+      (this.undidCount ? ` · Undid ${this.undidCount}` : '');
     saveStats(this.stats);
   }
 
@@ -361,7 +596,7 @@ export class StewardSystem extends createSystem({
   }
 
   private setReason(s: string): void {
-    el<HTMLDivElement>('reason').textContent = s ? `Reason: ${s}` : '';
+    el<HTMLDivElement>('reason').textContent = s ? s : '';
   }
 
   private setPendingUi(on: boolean): void {
@@ -370,14 +605,6 @@ export class StewardSystem extends createSystem({
     el<HTMLButtonElement>('btn-undo').disabled = !canUndo;
     if (this.keepBtn) this.keepBtn.label.mesh.visible = on;
     if (this.undoBtn) this.undoBtn.label.mesh.visible = canUndo;
-    if (on) {
-      for (const b of [this.keepBtn, this.undoBtn]) {
-        if (!b) continue;
-        this.drawWorldBtn(b.label, b.label.mesh.userData.btn as string, b.label.mesh.userData.accent as string, false);
-      }
-    } else if (canUndo && this.undoBtn) {
-      this.drawWorldBtn(this.undoBtn.label, this.undoBtn.label.mesh.userData.btn as string, this.undoBtn.label.mesh.userData.accent as string, false);
-    }
   }
 
   private async onUserText(): Promise<void> {
@@ -393,7 +620,7 @@ export class StewardSystem extends createSystem({
     this.busy = true;
     this.lastIntent = text;
     this.refreshModeChip();
-    this.setStatus(`Chat → steering tabs… (“${text.slice(0, 42)}${text.length > 42 ? '…' : ''}”)`);
+    this.setStatus(`Steering tabs… “${text.slice(0, 36)}${text.length > 36 ? '…' : ''}”`);
     this.setSpeech('Working…');
     this.setReason('');
     try {
@@ -404,7 +631,7 @@ export class StewardSystem extends createSystem({
 
       if (hasLiveKey()) {
         this.setStatus('Live chat · calling tools…');
-        const summary = this.panes.panes.map((p) => `${p.id}:${p.title}`).join(', ');
+        const summary = this.panes.listed().map((p) => `${p.id}:${p.title}`).join(', ');
         const connSummary = Object.entries(this.connectors).filter(([, v]) => v).map(([k]) => k).join(',') || 'none';
         const res = await chatWithTools(
           `${text}\n[connectors_on=${connSummary}]`,
@@ -418,7 +645,7 @@ export class StewardSystem extends createSystem({
           this.mode = 'live';
           this.refreshModeChip();
         } else {
-          this.setSpeech(`Live chat failed (${res.error || res.source}) — Demo Steward taking over.`);
+          this.setSpeech(`Live chat failed — Demo Steward taking over.`);
           this.setStatus('Live failed → Demo Steward · offline twin');
           await sleep(400);
         }
@@ -428,7 +655,7 @@ export class StewardSystem extends createSystem({
         this.mode = 'demo';
         this.refreshModeChip();
         this.setStatus('Demo Steward · offline twin — applying tab plan');
-        const plan = demoPlan(text, this.panes.panes.map((p) => p.id), { connectors: this.connectors });
+        const plan = demoPlan(text, this.panes.listed().map((p) => p.id), { connectors: this.connectors });
         speech = plan.speech;
         reason = plan.reason;
         calls = plan.calls;
@@ -455,7 +682,7 @@ export class StewardSystem extends createSystem({
     this.paintSession();
     this.setPendingUi(true);
     this.setStatus(
-      `Pending Keep-all · ${this.panes.panes.length} tab${this.panes.panes.length === 1 ? '' : 's'} from chat`,
+      `Pending Keep all · ${this.panes.listed().length} tab${this.panes.listed().length === 1 ? '' : 's'}`,
     );
   }
 
@@ -483,7 +710,7 @@ export class StewardSystem extends createSystem({
         if (service !== 'calendar' && service !== 'mail' && service !== 'notes') break;
         if (!isConnected(service, this.connectors)) {
           this.setStatus(`${service} · Connect needed`);
-          this.panes.open('brief', `${service} · Connect`, `Tap ${service} · Connect in the tray (demo — no OAuth).`);
+          this.panes.open('brief', `${service} · Connect`, `Tap ${service} · Connect (demo — no OAuth).`);
           break;
         }
         const d = demoConnectorBody(service, this.lastIntent);
@@ -497,14 +724,14 @@ export class StewardSystem extends createSystem({
       }
       case 'close_pane': {
         const id = a.id || '';
-        const existing = this.panes.panes.find((p) => p.id === id);
+        const existing = this.panes.listed().find((p) => p.id === id);
         this.setStatus(`Closing ${existing?.title || id || 'tab'}…`);
         this.panes.close(id);
         break;
       }
       case 'focus_pane': {
         const id = a.id || '';
-        const existing = this.panes.panes.find((p) => p.id === id);
+        const existing = this.panes.listed().find((p) => p.id === id);
         this.setStatus(`Focusing ${existing?.title || id || 'tab'}`);
         this.panes.focus(id);
         break;
@@ -518,22 +745,20 @@ export class StewardSystem extends createSystem({
       }
       case 'complete_step':
         if (a.summary) this.setSpeech(a.summary);
-        this.setStatus(a.summary || 'Step complete — Keep-all or Undo-last');
+        this.setStatus(a.summary || 'Step complete — Keep all or Undo last');
         break;
       default:
         break;
     }
   }
 
-
-  /** Ensure room for a pane id — close Done or oldest if at cap. */
   private ensurePaneSlot(preferId: string): void {
-    if (this.panes.panes.find((p) => p.id === preferId)) return;
-    if (this.panes.panes.length < 3) return;
+    if (this.panes.listed().find((p) => p.id === preferId)) return;
+    if (this.panes.listed().length < 3) return;
     const victim =
-      this.panes.panes.find((p) => p.id === 'done') ||
-      this.panes.panes.find((p) => !p.focused) ||
-      this.panes.panes[0];
+      this.panes.listed().find((p) => p.id === 'done') ||
+      this.panes.listed().find((p) => !p.focused) ||
+      this.panes.listed()[0];
     if (victim) {
       this.setStatus(`Making room — closing ${victim.title}`);
       this.panes.close(victim.id);
@@ -543,14 +768,13 @@ export class StewardSystem extends createSystem({
   private async execOpenWeb(url: string, titleHint?: string): Promise<void> {
     if (!isConnected('web', this.connectors)) {
       this.setStatus('Web · Connect needed');
-      this.panes.open('brief', 'Web · Connect', 'Tap Web · Connect first.\nPublic pages only — no account login / no Quest Browser RPA.');
+      this.panes.open('brief', 'Web · Connect', 'Tap Web first.\nPublic pages only — no account login.');
       this.panes.focus('brief');
       return;
     }
     this.ensurePaneSlot('web');
     this.setStatus(`Opening ${url}…`);
     const offline = this.mode === 'demo' || !navigator.onLine || !hasLiveKey();
-    // Demo Steward offline twin still simulates; live+online tries public fetch
     const useDemo = offline && this.mode === 'demo';
     if (!useDemo && navigator.onLine !== false) {
       this.setStatus('Connected Web · summarizing…');
@@ -574,6 +798,7 @@ export class StewardSystem extends createSystem({
 
   keep(): void {
     if (!this.pending) return;
+    sfxClick();
     this.lastKeepBefore = this.pending.before;
     this.stats.kept += 1;
     this.paintSession();
@@ -581,24 +806,26 @@ export class StewardSystem extends createSystem({
     this.setPendingUi(false);
     this.panes.pulseKeepFocus(700);
     const stage = el<HTMLElement>('pane-stage');
-    stage.classList.add('dimmed');
-    // Keep focused tab readable: undim after briefly showing commitment
-    setTimeout(() => stage.classList.remove('dimmed'), 700);
+    stage.classList.add('dimmed', 'kept');
+    setTimeout(() => stage.classList.remove('dimmed', 'kept'), 700);
     this.setSpeech('Kept all. Ready for the next ask.');
     this.setReason('');
-    this.setStatus(`Kept ${this.stats.kept} · undid ${this.undidCount} — chat drives next tabs`);
+    this.setStatus(`Kept ${this.stats.kept} · Undid ${this.undidCount}`);
   }
 
   undo(): void {
+    if (!this.pending && !this.lastKeepBefore) return;
+    sfxWhoosh();
+    this.panes.pulseUndo();
     if (this.pending) {
       this.panes.restore(this.pending.before);
       this.pending = null;
       this.undidCount += 1;
       this.paintSession();
       this.setPendingUi(false);
-      this.setSpeech('Undone — tabs restored. Try another chip.');
+      this.setSpeech('Undone — tabs restored.');
       this.setReason('');
-      this.setStatus(`Undid pending · Kept ${this.stats.kept} · undid ${this.undidCount}`);
+      this.setStatus(`Undid pending · Kept ${this.stats.kept} · Undid ${this.undidCount}`);
       return;
     }
     if (this.lastKeepBefore) {
@@ -610,43 +837,41 @@ export class StewardSystem extends createSystem({
       this.setPendingUi(false);
       this.setSpeech('Undo last Keep — tabs restored.');
       this.setReason('');
-      this.setStatus(`Undid last Keep · Kept ${this.stats.kept} · undid ${this.undidCount}`);
+      this.setStatus(`Undid last Keep · Kept ${this.stats.kept} · Undid ${this.undidCount}`);
     }
   }
 
-  /**
-   * Demo tour: chat → ≤3 tabs → Keep-all → Park → Undo-last.
-   * Also flips Web Connect briefly for a public/demo web pane beat when useful.
-   */
   async runDemoTour(): Promise<void> {
     if (this.busy) return;
-    for (const p of [...this.panes.panes]) this.panes.close(p.id);
+    const cold = el<HTMLElement>('cold-start');
+    if (!cold.hidden) this.beginOnboarding();
+    this.showGuide(-1);
+    for (const p of [...this.panes.listed()]) this.panes.close(p.id);
     this.pending = null;
     this.lastKeepBefore = null;
     this.setPendingUi(false);
-    this.setStatus('Demo tour · chat drives tabs (no character meshes)');
-    this.setSpeech("Demo tour — chat opens tabs on the left, Keep-all / Undo-last, then a Web demo.");
+    this.setStatus('Demo tour · chat drives tabs');
+    this.setSpeech('Demo tour — open tabs, Keep all, Undo last, then a Web demo.');
     await sleep(600);
 
     await this.handleIntent('Prep call');
     await sleep(1400);
     if (this.pending) {
-      this.setSpeech('👍 Keep all — accepting these tabs.');
-      this.setStatus('Tour · Keep-all');
+      this.setSpeech('Keep all — accepting these tabs.');
+      this.setStatus('Tour · Keep all');
       this.flashWorldBtn('keep');
       await sleep(600);
       this.keep();
     }
     await sleep(700);
 
-    // Web connector beat
     this.connectors.web = true;
     saveConnectors(this.connectors);
     this.paintConnectors();
     await this.handleIntent('Lookup https://example.com');
     await sleep(1400);
     if (this.pending) {
-      this.setSpeech('👍 Keep all — Web pane kept.');
+      this.setSpeech('Keep all — Web pane kept.');
       this.flashWorldBtn('keep');
       await sleep(500);
       this.keep();
@@ -656,16 +881,16 @@ export class StewardSystem extends createSystem({
     await this.handleIntent('Park this');
     await sleep(1200);
     if (this.pending || this.lastKeepBefore) {
-      this.setSpeech('👎 Undo last — restoring tabs.');
-      this.setStatus('Tour · Undo-last');
+      this.setSpeech('Undo last — restoring tabs.');
+      this.setStatus('Tour · Undo last');
       this.flashWorldBtn('undo');
       await sleep(600);
       this.undo();
     }
     await sleep(500);
-    this.setSpeech('Tour done — right chat dock, left tabs, Connectors, no characters.');
+    this.setSpeech('Tour done — chat dock, tabs, Connectors. No characters.');
     this.setStatus(
-      `Tour done · Kept ${this.stats.kept} · undid ${this.undidCount} · Demo Steward · offline twin`,
+      `Tour done · Kept ${this.stats.kept} · Undid ${this.undidCount} · Demo Steward · offline`,
     );
   }
 }

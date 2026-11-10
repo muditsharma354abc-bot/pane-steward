@@ -1,20 +1,38 @@
 /** Mutable theme tokens — Object.assign in applyContrast so importers keep the same ref. */
 export const C = {
-  glass: '#14161C', glassHi: '#262A34',
-  ink: '#F2F4F8', mute: '#A7AFBD', accent: '#7C9CFF', warm: '#FFD27A',
-  keep: '#5AD67A', undo: '#FF8A5B', pane: '#1B2233',
+  glass: '#ECE8E1',
+  glassHi: '#FAF8F4',
+  ink: '#2A2622',
+  mute: '#4A453F',
+  accent: '#C45C26',
+  pane: '#F4F1EC',
+  keep: '#2A2622',
+  undo: '#2A2622',
+  bg: '#DED6CA',
+  floor: '#C9C2B6',
+  hemiSky: '#F3EDE3',
+  hemiGround: '#B7AFA4',
 };
 
 const DEFAULT = { ...C };
 
-/** High-contrast palette for HUD/panes/chips (WCAG-friendlier on dark glass). */
+/** High-contrast *light* variant — never pure #000 or #FFF. */
 const HC = {
-  glass: '#000000', glassHi: '#111111',
-  ink: '#FFFFFF', mute: '#FFFFFF', accent: '#FFFF66', warm: '#FFFF66',
-  keep: '#00FF66', undo: '#FF9933', pane: '#000000',
+  glass: '#E4DDD2',
+  glassHi: '#F7F3EA',
+  ink: '#1A1612',
+  mute: '#322C26',
+  accent: '#9A3D14',
+  pane: '#EDE6D8',
+  keep: '#1A1612',
+  undo: '#1A1612',
+  bg: '#D4CBBE',
+  floor: '#B7AFA0',
+  hemiSky: '#F0EADF',
+  hemiGround: '#A89F92',
 };
 
-export const GLASS_ALPHA = 0.82;
+export const GLASS_ALPHA = 0.94;
 export const FONT = 'Inter, system-ui, -apple-system, Segoe UI, sans-serif';
 
 export function applyContrast(highContrast: boolean): void {

@@ -12,16 +12,27 @@ export interface Pane {
   root: Group;
 }
 
-const SLOT_X = [-0.42, 0, 0.42];
-const SLOT_Y = 1.35;
-const SLOT_Z = -1.05;
-const PW = 0.36, PH = 0.42;
+const SLOT_X = [-0.36, 0.02, 0.40];
+const SLOT_Y = 1.18;
+const SLOT_Z = -1.02;
+const PW = 0.36, PH = 0.40;
+const PITCH = -0.16;
+const YAW = [0.18, 0, -0.18];
+
+interface Target {
+  x: number;
+  y: number;
+  z: number;
+  s: number;
+  departing?: boolean;
+}
 
 export class PaneManager {
   readonly root = new Group();
   panes: Pane[] = [];
   private focusId = '';
   private dimTimer: ReturnType<typeof setTimeout> | null = null;
+  private targets = new Map<string, Target>();
   /** Fired after layout/open/close/focus/setText so HUD tabs can sync. */
   onChange: (() => void) | null = null;
 
@@ -29,14 +40,18 @@ export class PaneManager {
     try { this.onChange?.(); } catch { /* ignore */ }
   }
 
+  listed(): Pane[] {
+    return this.panes.filter((p) => !this.targets.get(p.id)?.departing);
+  }
+
   snapshot(): PaneSnap[] {
-    return this.panes.map((p) => ({
+    return this.listed().map((p) => ({
       id: p.id, title: p.title, body: p.body, focused: p.focused,
     }));
   }
 
   restore(snaps: PaneSnap[]): void {
-    for (const p of [...this.panes]) this.close(p.id, false);
+    for (const p of [...this.panes]) this.removeNow(p.id);
     for (const s of snaps) this.open(s.id, s.title, s.body, false);
     const f = snaps.find((s) => s.focused);
     if (f) this.focus(f.id, false);
@@ -45,15 +60,20 @@ export class PaneManager {
   }
 
   open(id: string, title: string, body = '', redraw = true): Pane | null {
-    if (this.panes.find((p) => p.id === id)) {
+    const existing = this.panes.find((p) => p.id === id && !this.targets.get(p.id)?.departing);
+    if (existing) {
       this.setText(id, title, body);
-      return this.panes.find((p) => p.id === id)!;
+      return existing;
     }
-    if (this.panes.length >= 3) return null;
+    if (this.listed().length >= 3) return null;
     const label = new Label(PW, PH);
     const root = new Group();
     root.add(label.mesh);
     this.root.add(root);
+    // Slide in from the left toward the middle.
+    root.position.set(-0.95, SLOT_Y, SLOT_Z);
+    root.scale.setScalar(0.82);
+    root.rotation.set(PITCH, YAW[this.listed().length] ?? 0, 0);
     const pane: Pane = { id, title, body, focused: false, label, root };
     this.panes.push(pane);
     this.focusId = id;
@@ -63,18 +83,54 @@ export class PaneManager {
   }
 
   close(id: string, notify = true): boolean {
-    const i = this.panes.findIndex((p) => p.id === id);
-    if (i < 0) return false;
-    const [p] = this.panes.splice(i, 1);
-    this.root.remove(p.root);
-    if (this.focusId === id) this.focusId = this.panes[0]?.id ?? '';
+    const p = this.panes.find((x) => x.id === id);
+    if (!p) return false;
+    const cur = this.targets.get(id);
+    this.targets.set(id, {
+      x: -0.98,
+      y: SLOT_Y,
+      z: SLOT_Z,
+      s: 0.78,
+      departing: true,
+    });
+    if (!cur) {
+      // still layout remaining immediately
+    }
+    if (this.focusId === id) this.focusId = this.listed().find((x) => x.id !== id)?.id ?? '';
     this.layout();
     if (notify) this.notify();
     return true;
   }
 
+  private removeNow(id: string): void {
+    const i = this.panes.findIndex((p) => p.id === id);
+    if (i < 0) return;
+    const [p] = this.panes.splice(i, 1);
+    this.root.remove(p.root);
+    this.targets.delete(id);
+    if (this.focusId === id) this.focusId = this.listed()[0]?.id ?? '';
+  }
+
+  tick(dt: number): void {
+    const k = 1 - Math.exp(-dt * 9);
+    for (const p of [...this.panes]) {
+      const t = this.targets.get(p.id);
+      if (!t) continue;
+      p.root.position.x += (t.x - p.root.position.x) * k;
+      p.root.position.y += (t.y - p.root.position.y) * k;
+      p.root.position.z += (t.z - p.root.position.z) * k;
+      const s = p.root.scale.x + (t.s - p.root.scale.x) * k;
+      p.root.scale.setScalar(s);
+      if (t.departing && Math.abs(p.root.position.x - t.x) < 0.04) {
+        this.removeNow(p.id);
+        this.layout();
+        this.notify();
+      }
+    }
+  }
+
   focus(id: string, notify = true): boolean {
-    if (!this.panes.find((p) => p.id === id)) return false;
+    if (!this.listed().find((p) => p.id === id)) return false;
     this.focusId = id;
     this.layout();
     if (notify) this.notify();
@@ -92,40 +148,51 @@ export class PaneManager {
   }
 
   focused(): Pane | undefined {
-    return this.panes.find((p) => p.id === this.focusId) ?? this.panes[0];
+    return this.listed().find((p) => p.id === this.focusId) ?? this.listed()[0];
   }
 
   redrawAll(): void {
-    for (const pane of this.panes) this.draw(pane);
+    for (const pane of this.listed()) this.draw(pane);
   }
 
-  /** On Keep: briefly dim non-focused world panes + signal HUD stage. */
+  /** On Keep: briefly dim non-focused world panes + a scale pulse. */
   pulseKeepFocus(ms = 650): void {
     if (this.dimTimer) clearTimeout(this.dimTimer);
-    for (const p of this.panes) {
+    for (const p of this.listed()) {
       const mat = p.label.mesh.material as MeshBasicMaterial;
       mat.transparent = true;
       mat.opacity = p.focused ? 1 : 0.38;
       mat.needsUpdate = true;
+      p.root.scale.setScalar(p.focused ? 1.12 : 0.9);
     }
     this.dimTimer = setTimeout(() => {
-      for (const p of this.panes) {
+      for (const p of this.listed()) {
         const mat = p.label.mesh.material as MeshBasicMaterial;
         mat.opacity = 1;
         mat.needsUpdate = true;
       }
+      this.layout();
       this.dimTimer = null;
     }, ms);
   }
 
+  /** Undo: reverse slide cue before restore caller runs. */
+  pulseUndo(): void {
+    for (const p of this.listed()) {
+      p.root.position.x -= 0.08;
+    }
+  }
+
   private layout(): void {
-    this.panes.forEach((p, i) => {
+    this.listed().forEach((p, i) => {
       p.focused = p.id === this.focusId;
-      const x = SLOT_X[i] ?? 0;
-      const z = p.focused ? SLOT_Z + 0.08 : SLOT_Z;
-      const s = p.focused ? 1.08 : 0.95;
-      p.root.position.set(x, SLOT_Y, z);
-      p.root.scale.setScalar(s);
+      this.targets.set(p.id, {
+        x: SLOT_X[i] ?? 0,
+        y: SLOT_Y,
+        z: p.focused ? SLOT_Z + 0.07 : SLOT_Z,
+        s: p.focused ? 1.07 : 0.94,
+      });
+      p.root.rotation.set(PITCH, YAW[i] ?? 0, 0);
       this.draw(p);
     });
   }
@@ -133,9 +200,8 @@ export class PaneManager {
   private draw(p: Pane): void {
     p.label.draw((g, W, H) => {
       panel(g, W, H, C.pane, p.focused ? C.accent : undefined);
-      text(g, p.title, 36, 48, 36, C.ink, 700, W - 60);
-      para(g, p.body || ' ', 36, 90, 26, W - 72, C.mute);
-      if (p.focused) text(g, 'FOCUSED', W - 36, H - 36, 18, C.warm, 600, 200, 'right');
+      text(g, p.title, 40, 52, 40, C.ink, 700, W - 72);
+      para(g, p.body || ' ', 40, 98, 32, W - 80, C.mute);
     });
   }
 }

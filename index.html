@@ -7,189 +7,241 @@
     <title>Pane Steward</title>
     <style>
       :root {
-        --hud-fs: 14px;
-        --speech-fs: 15px;
-        --chip-fs: 12px;
-        --mute: #9aa3b5;
-        --ink: #eef2f8;
-        --btn-bg: #222938ee;
-        --btn-border: #6b7cff;
-        --pane-bg: #141820f2;
-        --speech-bg: #0008;
-        --reason: #ffd27a;
-        --keep-border: #5ad67a;
-        --keep-ink: #b8ffcb;
-        --undo-border: #ff8a5b;
-        --undo-ink: #ffc7b0;
-        --mode-border: #5a7cff;
-        --mode-ink: #c9d4ff;
-        --mode-bg: #1a2030ee;
-        --status-ink: #d7e0ff;
-        --status-border: #4a5a8a;
-        --dock-w: min(340px, 34vw);
-        --tabs-w: 148px;
+        --fs-sm: 24px;
+        --fs-md: 28px;
+        --fs-lg: 32px;
+        --mute: #4A453F;
+        --ink: #2A2622;
+        --accent: #C45C26;
+        --btn-bg: #FAF8F4;
+        --btn-border: #C9C2B6;
+        --pane-bg: #FAF8F4;
+        --speech-bg: #F4F1EC;
+        --page: #F4F1EC;
+        --panel: #FAF8F4;
+        --shadow: 0 14px 36px rgba(42,38,34,0.14), 0 2px 8px rgba(42,38,34,0.06);
+        --dock-w: min(360px, 36vw);
+        --tabs-w: 176px;
       }
       html.hc {
-        --mute: #ffffff; --ink: #ffffff; --btn-bg: #000; --btn-border: #ffff66;
-        --pane-bg: #000; --speech-bg: #000; --reason: #ffff66;
-        --keep-border: #00ff66; --keep-ink: #00ff66; --undo-border: #ff9933; --undo-ink: #ff9933;
-        --mode-border: #ffff66; --mode-ink: #fff; --mode-bg: #000;
-        --status-ink: #fff; --status-border: #ffff66;
+        --mute: #322C26; --ink: #1A1612; --accent: #9A3D14;
+        --btn-bg: #F7F3EA; --btn-border: #1A1612;
+        --pane-bg: #F7F3EA; --speech-bg: #EDE6D8; --page: #EDE6D8; --panel: #F7F3EA;
       }
-      html.ts-0 { --hud-fs: 12px; --speech-fs: 13px; --chip-fs: 11px; }
-      html.ts-1 { --hud-fs: 14px; --speech-fs: 15px; --chip-fs: 12px; }
-      html.ts-2 { --hud-fs: 16px; --speech-fs: 17px; --chip-fs: 14px; }
+      html.ts-0 { --fs-sm: 24px; --fs-md: 26px; --fs-lg: 30px; }
+      html.ts-1 { --fs-sm: 24px; --fs-md: 28px; --fs-lg: 32px; }
+      html.ts-2 { --fs-sm: 26px; --fs-md: 30px; --fs-lg: 36px; }
 
-      html,body{margin:0;height:100%;background:#0f1218;font-family:Inter,system-ui,sans-serif;overflow:hidden;color:var(--ink)}
-      html.hc,html.hc body{background:#000}
+      html,body{margin:0;height:100%;background:var(--page);font-family:Inter,system-ui,sans-serif;overflow:hidden;color:var(--ink)}
       #scene-container{position:fixed;inset:0}
 
-      /* Top chrome */
-      #mode-chip{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:40;background:var(--mode-bg);border:1px solid var(--mode-border);color:var(--mode-ink);border-radius:999px;padding:6px 12px;font-size:var(--chip-fs);backdrop-filter:blur(8px);max-width:min(640px,70vw);text-align:center}
-      #status-line{position:fixed;top:44px;left:50%;transform:translateX(-50%);z-index:40;background:var(--mode-bg);border:1px solid var(--status-border);color:var(--status-ink);border-radius:12px;padding:7px 12px;font-size:var(--chip-fs);backdrop-filter:blur(8px);max-width:min(720px,78vw);line-height:1.35;min-height:1.35em;text-align:center}
+      #mode-chip{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:40;background:var(--panel);border:1px solid var(--btn-border);color:var(--ink);border-radius:999px;padding:8px 16px;font-size:var(--fs-sm);box-shadow:var(--shadow);max-width:min(680px,72vw);text-align:center;line-height:1.2}
+      #status-line{position:fixed;top:58px;left:50%;transform:translateX(-50%);z-index:40;background:var(--panel);border:1px solid var(--btn-border);color:var(--ink);border-radius:14px;padding:8px 14px;font-size:var(--fs-sm);box-shadow:var(--shadow);max-width:min(740px,78vw);line-height:1.3;min-height:1.3em;text-align:center}
       #top-bar{position:fixed;top:10px;left:14px;z-index:40;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-      #privacy{position:fixed;top:10px;right:calc(var(--dock-w) + 16px);z-index:35;max-width:200px;text-align:right;font-size:10px;color:var(--mute);line-height:1.3}
       #a11y-bar{display:flex;gap:6px;align-items:center}
 
       button{
-        background:var(--btn-bg);color:var(--ink);border:1px solid var(--btn-border);border-radius:14px;
-        padding:10px 12px;font-size:var(--hud-fs);cursor:pointer;min-height:48px;min-width:48px;line-height:1.2
+        background:var(--btn-bg);color:var(--ink);border:1px solid var(--btn-border);border-radius:16px;
+        padding:10px 14px;font-size:var(--fs-sm);cursor:pointer;min-height:48px;min-width:48px;line-height:1.15;
+        box-shadow:0 2px 0 rgba(42,38,34,0.06);
       }
-      button:hover{filter:brightness(1.12)}
-      button:disabled{opacity:.45;cursor:default}
-      #a11y-bar button[aria-pressed="true"]{outline:2px solid var(--reason);outline-offset:2px}
+      button:hover, button.gaze{
+        outline:3px solid var(--accent);outline-offset:2px;
+        box-shadow:0 0 0 6px rgba(196,92,38,0.18);
+      }
+      button:disabled{opacity:.45;cursor:default;outline:none;box-shadow:none}
+      #a11y-bar button[aria-pressed="true"],
+      #connectors button[aria-pressed="true"]{
+        outline:3px solid var(--accent);outline-offset:2px;color:var(--accent);border-color:var(--accent);
+      }
       html.hc button{border-width:2px;font-weight:700}
 
-      /* LEFT: vertical tab strip */
       #tab-rail{
-        position:fixed;top:86px;bottom:16px;left:12px;width:var(--tabs-w);z-index:30;
-        display:flex;flex-direction:column;gap:8px;pointer-events:auto;
-        background:var(--pane-bg);border:1px solid var(--btn-border);border-radius:16px;
-        padding:10px;box-sizing:border-box;backdrop-filter:blur(10px);
+        position:fixed;top:108px;bottom:16px;left:12px;width:var(--tabs-w);z-index:30;
+        display:flex;flex-direction:column;gap:10px;pointer-events:auto;
+        background:var(--pane-bg);border:1px solid var(--btn-border);border-radius:24px;
+        padding:12px;box-sizing:border-box;box-shadow:var(--shadow);
       }
-      #tab-rail-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px}
-      #tab-rail-head span{font-size:var(--chip-fs);color:var(--mute);font-weight:600}
-      #btn-tab-add{min-width:48px;min-height:40px;padding:6px 10px;font-size:18px;line-height:1}
-      #tab-list{display:flex;flex-direction:column;gap:6px;flex:1;overflow:auto}
+      #tab-rail-head{display:flex;align-items:center;justify-content:space-between;gap:6px}
+      #tab-rail-head span{font-size:var(--fs-sm);color:var(--mute);font-weight:700}
+      #btn-tab-add{min-width:48px;min-height:48px;padding:6px 10px;font-size:var(--fs-md);line-height:1;border-radius:16px}
+      #tab-list{display:flex;flex-direction:column;gap:8px;flex:1;overflow:auto}
       .tab-item{
-        display:flex;align-items:stretch;gap:0;border-radius:12px;overflow:hidden;
-        border:1px solid transparent;background:#1a2233aa;
+        display:flex;align-items:stretch;gap:0;border-radius:18px;overflow:hidden;
+        border:1px solid transparent;background:#F4F1EC;
+        animation:tab-in .32s ease;
       }
-      .tab-item.active{border-color:var(--btn-border);background:#2a3550}
+      .tab-item.active, .tab-item.gaze, .tab-item:hover{
+        border-color:var(--accent);
+        box-shadow:0 0 0 4px rgba(196,92,38,0.18);
+      }
+      .tab-item.active{background:#EFE8DF}
+      .tab-item.leaving{animation:tab-out .22s ease forwards}
+      @keyframes tab-in{from{transform:translateX(-28px);opacity:0}to{transform:translateX(0);opacity:1}}
+      @keyframes tab-out{to{transform:translateX(-24px);opacity:0}}
       .tab-item button.tab-select{
-        flex:1;border:none;border-radius:0;min-height:48px;text-align:left;padding:10px 10px;
-        background:transparent;font-size:var(--chip-fs);font-weight:600;
+        flex:1;border:none;border-radius:0;min-height:52px;text-align:left;padding:10px 10px;
+        background:transparent;font-size:var(--fs-sm);font-weight:700;box-shadow:none;display:flex;align-items:center;gap:8px;
       }
+      .tab-icon{width:1.1em;text-align:center;color:var(--accent)}
+      .tab-item:not(.active):not(.gaze) .tab-icon{color:var(--mute)}
       .tab-item button.tab-close{
-        border:none;border-radius:0;min-width:40px;min-height:48px;padding:0;
-        background:transparent;color:var(--mute);font-size:16px;
+        border:none;border-radius:0;min-width:48px;min-height:52px;padding:0;
+        background:transparent;color:var(--mute);font-size:var(--fs-md);box-shadow:none;
       }
-      .tab-item button.tab-close:hover{color:var(--undo-ink);background:#0004}
-      #tab-hint{font-size:10px;color:var(--mute);line-height:1.3;margin-top:auto}
+      .tab-item button.tab-close:hover,.tab-item button.tab-close.gaze{color:var(--accent)}
+      #tab-hint{font-size:var(--fs-sm);color:var(--mute);line-height:1.25;margin-top:auto}
 
-      /* MIDDLE: focused pane content */
       #pane-stage{
-        position:fixed;top:86px;bottom:16px;left:calc(var(--tabs-w) + 24px);right:calc(var(--dock-w) + 24px);
+        position:fixed;top:108px;bottom:16px;left:calc(var(--tabs-w) + 24px);right:calc(var(--dock-w) + 24px);
         z-index:25;pointer-events:auto;
-        background:var(--pane-bg);border:1px solid var(--btn-border);border-radius:16px;
-        padding:16px 18px;box-sizing:border-box;backdrop-filter:blur(10px);
+        background:var(--pane-bg);border:1px solid var(--btn-border);border-radius:24px;
+        padding:18px 20px;box-sizing:border-box;box-shadow:var(--shadow);
         display:flex;flex-direction:column;gap:10px;min-width:180px;
       }
       #pane-stage.dimmed{opacity:.42;transition:opacity .35s ease}
-      #pane-stage-title{font-size:calc(var(--speech-fs) + 2px);font-weight:700;margin:0}
-      #pane-stage-body{flex:1;overflow:auto;white-space:pre-wrap;color:var(--mute);font-size:var(--hud-fs);line-height:1.45;margin:0}
-      #pane-stage-empty{color:var(--mute);font-size:var(--hud-fs);margin:auto;text-align:center;line-height:1.45}
+      #pane-stage.kept{transform:scale(0.99);transition:transform .35s ease}
+      #pane-stage-title{font-size:var(--fs-md);font-weight:700;margin:0}
+      #pane-stage-body{flex:1;overflow:auto;white-space:pre-wrap;color:var(--mute);font-size:var(--fs-sm);line-height:1.4;margin:0}
+      #pane-stage-empty{color:var(--mute);font-size:var(--fs-sm);margin:auto;text-align:center;line-height:1.4}
 
-      /* RIGHT: chat dock */
       #chat-dock{
-        position:fixed;top:86px;right:12px;bottom:16px;width:var(--dock-w);z-index:30;
-        display:flex;flex-direction:column;gap:8px;pointer-events:auto;
-        background:var(--pane-bg);border:1px solid var(--btn-border);border-radius:16px;
-        padding:12px;box-sizing:border-box;backdrop-filter:blur(10px);
+        position:fixed;top:108px;right:12px;bottom:16px;width:var(--dock-w);z-index:30;
+        display:flex;flex-direction:column;gap:10px;pointer-events:auto;
+        background:var(--pane-bg);border:1px solid var(--btn-border);border-radius:24px;
+        padding:14px;box-sizing:border-box;box-shadow:var(--shadow);
       }
-      #session{font-size:var(--chip-fs);color:var(--mute);text-align:center}
-      #speech{font-size:var(--speech-fs);color:var(--ink);background:var(--speech-bg);border-radius:12px;padding:8px 10px;border:1px solid transparent;line-height:1.35}
+      #session{font-size:var(--fs-sm);color:var(--mute);text-align:center}
+      #speech{font-size:var(--fs-sm);color:var(--ink);background:var(--speech-bg);border-radius:16px;padding:10px 12px;border:1px solid transparent;line-height:1.35}
       html.hc #speech{border-color:var(--btn-border)}
-      #reason{font-size:calc(var(--hud-fs) - 1px);color:var(--reason);min-height:1.1em}
-      #connectors{display:flex;flex-wrap:wrap;gap:6px}
-      #connectors button{flex:1 1 40%;min-height:44px;padding:8px 8px;font-size:var(--chip-fs)}
-      #connectors button[aria-pressed="true"]{border-color:var(--keep-border);color:var(--keep-ink);outline:2px solid var(--keep-border);outline-offset:1px}
-      #connectors-note{font-size:10px;color:var(--mute);line-height:1.3}
-      #chips{display:flex;flex-wrap:wrap;gap:6px}
-      #chips button{flex:1 1 30%;min-height:44px;padding:8px;font-size:var(--chip-fs)}
+      #reason{font-size:var(--fs-sm);color:var(--accent);min-height:0}
+      #connectors{display:flex;flex-wrap:wrap;gap:8px}
+      #connectors button{flex:1 1 42%;min-height:48px;padding:8px;font-size:var(--fs-sm)}
+      #connectors-note{font-size:var(--fs-sm);color:var(--mute);line-height:1.25}
+      #chips{display:flex;flex-wrap:wrap;gap:8px}
+      #chips button{flex:1 1 42%;min-height:48px;padding:8px;font-size:var(--fs-sm)}
       #keep-row{display:flex;gap:8px}
-      #keep-row #btn-keep{flex:1;border-color:var(--keep-border);color:var(--keep-ink)}
-      #keep-row #btn-undo{flex:1;border-color:var(--undo-border);color:var(--undo-ink)}
+      #keep-row button{flex:1;font-weight:700}
+      #keep-row button:not(:disabled){border-color:var(--accent)}
       #chat-bar{display:flex;gap:6px;margin-top:auto}
-      #chat-input{flex:1;min-height:48px;border-radius:12px;border:1px solid var(--btn-border);background:#0c1018;color:var(--ink);padding:10px 12px;font-size:var(--hud-fs)}
-      #btn-send{min-width:64px}
+      #chat-input{flex:1;min-height:48px;border-radius:16px;border:1px solid var(--btn-border);background:#F4F1EC;color:var(--ink);padding:10px 12px;font-size:var(--fs-sm)}
+      #btn-send{min-width:72px;font-weight:700}
+
+      #cold-start{
+        position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;
+        background:#E8E2D8;
+      }
+      #cold-start[hidden], #guide[hidden], #opts-pop[hidden]{display:none !important}
+      .hero-card,.guide-card,#opts-pop{
+        background:var(--panel);border:1px solid var(--btn-border);border-radius:28px;
+        box-shadow:var(--shadow);padding:28px 32px;max-width:min(520px,86vw);text-align:center;
+      }
+      .hero-card .eyebrow{font-size:var(--fs-sm);color:var(--accent);font-weight:700;margin:0 0 8px}
+      .hero-card h1{font-size:40px;line-height:1.15;margin:0 0 12px}
+      .hero-card .lede{font-size:var(--fs-md);color:var(--mute);margin:0 0 22px}
+      #btn-start{min-width:220px;min-height:64px;font-size:var(--fs-lg);font-weight:800;border-color:var(--accent);color:var(--accent)}
+      #guide{
+        position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:70;
+      }
+      .guide-card{padding:16px 20px;min-width:min(420px,86vw)}
+      #guide-step{font-size:var(--fs-md);font-weight:800;margin:0 0 6px}
+      #guide-body{font-size:var(--fs-sm);color:var(--mute);margin:0 0 12px}
+      #btn-guide-next{min-width:140px}
+      #opts-pop{
+        position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:75;
+        min-width:min(360px,86vw);text-align:left;
+      }
+      #opts-title{font-size:var(--fs-md);font-weight:800;margin:0 0 12px;text-align:center}
+      #opts-actions{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+      #opts-actions button{width:100%}
+      body.onboarding #tab-rail,
+      body.onboarding #pane-stage,
+      body.onboarding #chat-dock{visibility:hidden}
 
       @media (max-width:900px){
-        :root{ --dock-w: min(300px,42vw); --tabs-w: 120px; }
-        #privacy{display:none}
+        :root{ --dock-w: min(320px,44vw); --tabs-w: 148px; }
       }
     </style>
   </head>
-  <body>
+  <body class="onboarding">
     <div id="scene-container"></div>
 
-    <div id="mode-chip">Demo Steward · offline twin — chat still drives ≤3 panes</div>
+    <div id="mode-chip">Demo Steward · offline — no API key</div>
     <div id="status-line" role="status" aria-live="polite">Demo Steward · offline twin</div>
-    <div id="privacy">No character meshes. Connectors = session flags / public Web. No OAuth. Not Quest Browser RPA.</div>
     <div id="top-bar">
       <button id="btn-enter" type="button">Enter XR</button>
-      <button id="btn-demo" type="button">Demo tour</button>
+      <button id="btn-demo" type="button">Demo</button>
       <div id="a11y-bar" role="group" aria-label="Accessibility">
         <button id="btn-contrast" type="button" aria-pressed="false" title="High contrast">Contrast</button>
         <button id="btn-text-down" type="button" aria-label="Smaller text" title="Smaller text">A−</button>
         <button id="btn-text-up" type="button" aria-label="Larger text" title="Larger text">A+</button>
+        <button id="btn-mute" type="button" aria-pressed="false" title="Mute sounds">Sound</button>
+        <button id="btn-options" type="button" title="Options">Options</button>
       </div>
     </div>
 
-    <!-- LEFT vertical tabs -->
     <aside id="tab-rail" aria-label="Pane tabs">
       <div id="tab-rail-head">
         <span>Panes</span>
         <button id="btn-tab-add" type="button" title="Add pane (max 3)" aria-label="Add pane">+</button>
       </div>
       <div id="tab-list"></div>
-      <div id="tab-hint">≤3 tabs · chat opens / focuses · × removes</div>
+      <div id="tab-hint">Max 3</div>
     </aside>
 
-    <!-- MIDDLE focused content -->
     <main id="pane-stage" aria-live="polite">
-      <p id="pane-stage-empty">No panes yet — chat or tap + to add. Chat drives tabs from the right dock.</p>
+      <p id="pane-stage-empty">No panes yet — Start, then + or chat.</p>
       <h2 id="pane-stage-title" hidden></h2>
       <pre id="pane-stage-body" hidden></pre>
     </main>
 
-    <!-- RIGHT chat dock -->
     <aside id="chat-dock" aria-label="Chat steward">
-      <div id="session">Steward did 0 · you kept 0</div>
-      <div id="speech">Hi — chat-only Pane Steward. Ask me to open ≤3 tabs. No characters.</div>
+      <div id="session">Did 0 · Kept 0</div>
+      <div id="speech">Chat steers up to 3 panes. Demo Steward runs offline.</div>
       <div id="reason"></div>
       <div id="connectors" role="group" aria-label="Connectors">
-        <button type="button" data-conn="web" aria-pressed="false" title="Public Web pane">Web · Connect</button>
-        <button type="button" data-conn="calendar" aria-pressed="false" title="Demo Calendar — no OAuth">Calendar · Connect</button>
-        <button type="button" data-conn="mail" aria-pressed="false" title="Demo Mail — no Gmail OAuth">Mail · Connect</button>
-        <button type="button" data-conn="notes" aria-pressed="false" title="Demo Notes">Notes · Connect</button>
+        <button type="button" data-conn="web" aria-pressed="false" title="Public Web pane">Web</button>
+        <button type="button" data-conn="calendar" aria-pressed="false" title="Demo Calendar — no OAuth">Cal · demo</button>
+        <button type="button" data-conn="mail" aria-pressed="false" title="Demo Mail — no OAuth">Mail · demo</button>
+        <button type="button" data-conn="notes" aria-pressed="false" title="Demo Notes">Notes · demo</button>
       </div>
-      <div id="connectors-note">Connect = session flag · Web = public pages · Cal/Mail/Notes = demo (no OAuth) · not Quest RPA</div>
+      <div id="connectors-note">Web: public pages · Cal/Mail/Notes: demo, no OAuth</div>
       <div id="chips">
-        <button type="button" data-intent="prep">Prep call</button>
-        <button type="button" data-intent="park">Park this</button>
-        <button type="button" data-intent="next">What's next</button>
-        <button type="button" data-intent="web">Lookup web</button>
+        <button type="button" data-intent="prep">Prep</button>
+        <button type="button" data-intent="park">Park</button>
+        <button type="button" data-intent="next">Next</button>
+        <button type="button" data-intent="web">Web</button>
       </div>
       <div id="keep-row">
-        <button id="btn-keep" type="button" disabled>👍 Keep all</button>
-        <button id="btn-undo" type="button" disabled>👎 Undo last</button>
+        <button id="btn-keep" type="button" disabled>Keep all</button>
+        <button id="btn-undo" type="button" disabled>Undo last</button>
       </div>
       <div id="chat-bar">
-        <input id="chat-input" type="text" placeholder="Chat to open / focus / close tabs…" autocomplete="off" aria-label="Chat ask" />
+        <input id="chat-input" type="text" placeholder="Ask to open a pane…" autocomplete="off" aria-label="Chat ask" />
         <button id="btn-send" type="button">Send</button>
       </div>
     </aside>
+
+    <div id="cold-start">
+      <div class="hero-card">
+        <p class="eyebrow">Demo Steward · offline twin</p>
+        <h1>Pane Steward</h1>
+        <p class="lede">Chat steers up to 3 panes. Works now — no API key.</p>
+        <button id="btn-start" type="button">Start</button>
+      </div>
+    </div>
+    <div id="guide" hidden>
+      <div class="guide-card">
+        <p id="guide-step">1 / 3 · Open a tab</p>
+        <p id="guide-body">Tap + or Prep to open a pane.</p>
+        <button id="btn-guide-next" type="button">Next</button>
+      </div>
+    </div>
+    <div id="opts-pop" hidden role="dialog" aria-label="Options">
+      <p id="opts-title">Options</p>
+      <div id="opts-actions"></div>
+      <button type="button" id="opts-dismiss">Close</button>
+    </div>
 
     <script type="module" src="/src/index.ts"></script>
   </body>

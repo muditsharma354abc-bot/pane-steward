@@ -24,21 +24,42 @@ export class Label {
 }
 
 export function panel(g: CanvasRenderingContext2D, W: number, H: number, fill = C.glass, accent?: string): void {
-  const m = Math.min(10, H * 0.06), r = Math.min(28, (H - 2 * m) / 3.2);
-  const x = m, y = m * 0.6, w = W - 2 * m, h = H - 2 * m;
+  const m = Math.min(14, H * 0.08), r = Math.min(36, (H - 2 * m) / 2.8);
+  const x = m, y = m * 0.7, w = W - 2 * m, h = H - 2 * m;
   g.save();
-  g.shadowColor = 'rgba(0,0,0,0.4)'; g.shadowBlur = m * 1.4; g.shadowOffsetY = m * 0.4;
-  g.globalAlpha = GLASS_ALPHA; g.fillStyle = fill;
-  g.beginPath(); g.roundRect(x, y, w, h, r); g.fill();
+  g.shadowColor = 'rgba(42,38,34,0.22)';
+  g.shadowBlur = m * 2.2;
+  g.shadowOffsetY = m * 0.7;
+  g.globalAlpha = GLASS_ALPHA;
+  g.fillStyle = fill;
+  g.beginPath();
+  g.roundRect(x, y, w, h, r);
+  g.fill();
   g.restore();
+  // inner depth edge (warm, never pure white/black)
   const grad = g.createLinearGradient(0, y, 0, y + h);
-  grad.addColorStop(0, 'rgba(255,255,255,0.25)');
-  grad.addColorStop(1, 'rgba(255,255,255,0.04)');
-  g.strokeStyle = grad; g.lineWidth = 2;
-  g.beginPath(); g.roundRect(x + 1, y + 1, w - 2, h - 2, r); g.stroke();
+  grad.addColorStop(0, 'rgba(250,248,244,0.55)');
+  grad.addColorStop(1, 'rgba(42,38,34,0.08)');
+  g.strokeStyle = grad;
+  g.lineWidth = 3;
+  g.beginPath();
+  g.roundRect(x + 1.5, y + 1.5, w - 3, h - 3, r);
+  g.stroke();
   if (accent) {
     g.fillStyle = accent;
-    g.beginPath(); g.roundRect(x, y, 10, h, [r, 0, 0, r]); g.fill();
+    g.beginPath();
+    g.roundRect(x, y, 12, h, [r, 0, 0, r]);
+    g.fill();
+    // selected-state glow
+    g.save();
+    g.shadowColor = accent;
+    g.shadowBlur = 18;
+    g.strokeStyle = accent;
+    g.lineWidth = 3;
+    g.beginPath();
+    g.roundRect(x + 1, y + 1, w - 2, h - 2, r);
+    g.stroke();
+    g.restore();
   }
 }
 
