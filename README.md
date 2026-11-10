@@ -99,6 +99,7 @@ npm run dev:runtime
 | `quiz-wrong.png` | Wrong feedback (✗ Wrong) |
 | `quiz-amber.png` | Timer ring amber in the last 10 seconds |
 | `quiz-end.png` | End card (test run), tabs restored |
+| `quiz-xr-question.png` | Quiz Game Mode question with four answers and lifelines, immersive IWER view |
 | `quiz-xr-long.png` | Long question wraps to 3 lines, immersive IWER view |
 
 ## Current gaps
