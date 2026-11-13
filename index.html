@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <link rel="icon" href="data:," />
+    <title>Pane Steward</title>
+    <style>
+      :root {
+        --fs-sm: 24px;
+        --fs-md: 28px;
+        --fs-lg: 32px;
+        --mute: #4A453F;
+        --ink: #2A2622;
+        --accent: #C45C26;
+        --accent-ink: #9A3D14;
+        --btn-bg: #FAF8F4;
+        --btn-border: #C9C2B6;
+        --pane-bg: #FAF8F4;
+        --speech-bg: #F4F1EC;
+        --page: #F4F1EC;
+        --panel: #FAF8F4;
+        --shadow: 0 14px 36px rgba(42,38,34,0.14), 0 2px 8px rgba(42,38,34,0.06);
+        --dock-w: min(340px, 32vw);
+        --tabs-w: 276px;
+      }
+      html.hc {
+        --mute: #322C26; --ink: #1A1612; --accent: #9A3D14; --accent-ink: #9A3D14;
+        --btn-bg: #F7F3EA; --btn-border: #1A1612;
+        --pane-bg: #F7F3EA; --speech-bg: #EDE6D8; --page: #EDE6D8; --panel: #F7F3EA;
+      }
+      html.ts-0 { --fs-sm: 24px; --fs-md: 26px; --fs-lg: 30px; }
+      html.ts-1 { --fs-sm: 24px; --fs-md: 28px; --fs-lg: 32px; }
+      html.ts-2 { --fs-sm: 26px; --fs-md: 30px; --fs-lg: 36px; }
+
+      html,body{margin:0;height:100%;background:var(--page);font-family:Inter,system-ui,sans-serif;overflow:hidden;color:var(--ink)}
+      #scene-container{position:fixed;inset:0}
+
+      #top-bar{position:fixed;top:10px;left:14px;right:12px;z-index:90;display:flex;gap:8px;flex-wrap:nowrap;align-items:center;overflow:hidden}
+      #mode-chip{position:static;transform:none;width:100%;box-sizing:border-box;background:var(--speech-bg);border:1px solid var(--btn-border);color:var(--ink);border-radius:14px;padding:8px 10px;font-size:var(--fs-sm);text-align:center;line-height:1.25;box-shadow:none}
+      #status-line{position:static;transform:none;width:100%;box-sizing:border-box;background:var(--speech-bg);border:1px solid var(--btn-border);color:var(--ink);border-radius:14px;padding:8px 10px;font-size:var(--fs-sm);line-height:1.3;min-height:1.3em;text-align:center;box-shadow:none}
+      #a11y-bar{display:flex;gap:6px;align-items:center}
+
+      button{
+        background:var(--btn-bg);color:var(--ink);border:1px solid var(--btn-border);border-radius:16px;
+        padding:10px 14px;font-size:var(--fs-sm);cursor:pointer;min-height:48px;min-width:48px;line-height:1.15;
+        box-shadow:0 2px 0 rgba(42,38,34,0.06);
+      }
+      button:hover, button.gaze{
+        outline:3px solid var(--accent);outline-offset:2px;
+        box-shadow:0 0 0 6px rgba(196,92,38,0.18);
+      }
+      button:disabled{opacity:.45;cursor:default;outline:none;box-shadow:none}
+      #a11y-bar button[aria-pressed="true"],
+      #connectors button[aria-pressed="true"]{
+        outline:3px solid var(--accent);outline-offset:2px;color:var(--accent-ink);border-color:var(--accent);
+      }
+      html.hc button{border-width:2px;font-weight:700}
+
+      #tab-rail{
+        position:fixed;top:72px;bottom:16px;left:12px;width:var(--tabs-w);z-index:30;
+        display:flex;flex-direction:column;gap:10px;pointer-events:auto;
+        background:var(--pane-bg);border:1px solid var(--btn-border);border-radius:24px;
+        padding:12px;box-sizing:border-box;box-shadow:var(--shadow);
+      }
+      #tab-rail-head{display:flex;align-items:center;justify-content:space-between;gap:6px}
+      #tab-rail-head span{font-size:var(--fs-sm);color:var(--mute);font-weight:700}
+      #btn-tab-add{min-width:48px;min-height:48px;padding:6px 10px;font-size:var(--fs-md);line-height:1;border-radius:16px}
+      #tab-list{display:flex;flex-direction:column;gap:8px;flex:1;overflow:auto}
+      .tab-item{
+        display:flex;align-items:stretch;gap:0;border-radius:18px;overflow:hidden;
+        border:1px solid transparent;background:#F4F1EC;
+        animation:tab-in .32s ease;
+      }
+      .tab-item.active, .tab-item.gaze, .tab-item:hover{
+        border-color:var(--accent);
+        box-shadow:0 0 0 4px rgba(196,92,38,0.18);
+      }
+      .tab-item.active{background:#EFE8DF}
+      .tab-item.leaving{animation:tab-out .22s ease forwards}
+      @keyframes tab-in{from{transform:translateX(-28px);opacity:0}to{transform:translateX(0);opacity:1}}
+      @keyframes tab-out{to{transform:translateX(-24px);opacity:0}}
+      .tab-item button.tab-select{
+        flex:1;border:none;border-radius:0;min-height:52px;text-align:left;padding:10px 10px;
+        background:transparent;font-size:var(--fs-sm);font-weight:700;box-shadow:none;display:flex;align-items:center;gap:8px;overflow:hidden;min-width:0;
+      }
+      .tab-icon{width:1.1em;text-align:center;color:var(--accent-ink);flex-shrink:0}
+      .tab-text{display:flex;flex-direction:column;min-width:0;flex:1;text-align:left}
+      .tab-heading,.tab-sub{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+      .tab-heading{font-size:var(--fs-sm);font-weight:700;color:var(--ink)}
+      .tab-sub{font-size:14px;font-weight:600;color:var(--mute)}
+      .tab-item:not(.active):not(.gaze) .tab-icon{color:var(--mute)}
+      .tab-item.paused{opacity:1;filter:none}
+      .tab-item.paused.active,.tab-item.paused:hover{box-shadow:none}
+      .tab-item.paused .tab-icon,.tab-item.paused .tab-heading,.tab-item.paused .tab-sub,.tab-item.paused .tab-close{opacity:.58;filter:saturate(.75)}
+      .tab-paused-tag{display:inline-block;margin-top:3px;font-size:11px;font-weight:800;letter-spacing:.02em;color:#4A453F;background:#EFE4D4;border-radius:999px;padding:1px 7px;width:fit-content;line-height:1.3}
+      .tab-item button.tab-close{
+        border:none;border-radius:0;min-width:48px;min-height:52px;padding:0;
+        background:transparent;color:var(--mute);font-size:var(--fs-md);box-shadow:none;
+      }
+      .tab-item button.tab-close:hover,.tab-item button.tab-close.gaze{color:var(--accent-ink)}
+      #tab-hint{font-size:var(--fs-sm);color:var(--mute);line-height:1.25;margin-top:auto}
+
+      #pane-stage{
+        position:fixed;top:72px;bottom:16px;left:calc(var(--tabs-w) + 24px);right:calc(var(--dock-w) + 24px);
+        z-index:25;pointer-events:auto;
+        background:var(--pane-bg);border:1px solid var(--btn-border);border-radius:24px;
+        padding:18px 20px;box-sizing:border-box;box-shadow:var(--shadow);
+        display:flex;flex-direction:column;gap:10px;min-width:180px;
+      }
+      #pane-stage.dimmed{opacity:.42;transition:opacity .35s ease}
+      #pane-stage.kept{transform:scale(0.99);transition:transform .35s ease}
+      #pane-stage-title{font-size:var(--fs-md);font-weight:700;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      #pane-stage-sub{font-size:var(--fs-sm);color:var(--mute);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      #pane-stage-body{flex:1;overflow:auto;white-space:pre-wrap;color:var(--mute);font-size:var(--fs-sm);line-height:1.4;margin:0;font-family:Inter,system-ui,sans-serif}
+      #pane-stage-empty{color:var(--mute);font-size:var(--fs-sm);margin:auto;text-align:center;line-height:1.4}
+
+      #chat-dock{
+        position:fixed;top:72px;right:12px;bottom:16px;width:var(--dock-w);z-index:30;
+        display:flex;flex-direction:column;gap:10px;pointer-events:auto;
+        background:var(--pane-bg);border:1px solid var(--btn-border);border-radius:24px;
+        padding:12px;box-sizing:border-box;box-shadow:var(--shadow);overflow:hidden;min-width:0;
+      }
+      #dock-main{flex:1 1 0;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+      #mode-chip,#status-line,#session{flex:0 0 auto}
+      #status-line{white-space:normal;overflow:hidden;line-height:1.3;max-height:calc(1.3em * 2 + 20px);overflow-wrap:break-word}
+      #session{font-size:var(--fs-sm);color:var(--mute);text-align:center;white-space:nowrap;overflow:hidden}
+      #speech{font-size:var(--fs-sm);color:var(--ink);background:var(--speech-bg);border-radius:16px;padding:10px 12px;border:1px solid transparent;line-height:1.35;flex:0 0 auto;min-height:auto;height:auto;overflow:visible;white-space:normal;overflow-wrap:break-word}
+      html.hc #speech{border-color:var(--btn-border)}
+      #reason{font-size:var(--fs-sm);color:var(--accent-ink);min-height:1.2em;max-height:1.35em;white-space:nowrap;overflow:hidden;flex:0 0 auto;margin:0 0 4px}
+      #connectors{display:flex;flex-wrap:wrap;gap:8px}
+      #connectors button{flex:1 1 42%;min-height:48px;padding:8px;font-size:var(--fs-sm)}
+      #btn-break,#btn-more{width:100%;font-weight:700}
+      #more-panel{display:flex;flex-direction:column;gap:8px;flex:0 1 auto;min-height:0;overflow:auto}
+      #more-panel[hidden]{display:none !important}
+      #connectors-note{font-size:var(--fs-sm);color:var(--mute);line-height:1.25}
+      #chips{display:flex;flex-wrap:wrap;gap:8px}
+      #chips button{flex:1 1 42%;min-height:48px;padding:8px;font-size:var(--fs-sm)}
+      #keep-row,#chat-bar,#btn-more,#connectors,#reason,#mode-chip,#status-line,#session{flex-shrink:0}
+      #keep-row{display:flex;gap:8px}
+      #keep-row button{flex:1;font-weight:700}
+      #keep-row button:not(:disabled){border-color:var(--accent)}
+      #chat-bar{display:flex;gap:6px;margin-top:auto;min-width:0;width:100%;box-sizing:border-box}
+      #chat-input{flex:1 1 0;min-width:0;min-height:48px;border-radius:16px;border:1px solid var(--btn-border);background:#F4F1EC;color:var(--ink);padding:10px 12px;font-size:var(--fs-sm);box-sizing:border-box}
+      #btn-send{flex:0 0 auto;min-width:64px;font-weight:700}
+
+      #cold-start{
+        position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;
+        background:#E8E2D8;
+      }
+      #cold-start[hidden], #guide[hidden], #opts-pop[hidden]{display:none !important}
+      .hero-card,.guide-card,#opts-pop{
+        background:var(--panel);border:1px solid var(--btn-border);border-radius:28px;
+        box-shadow:var(--shadow);padding:28px 32px;max-width:min(520px,86vw);text-align:center;
+      }
+      .hero-card .eyebrow{font-size:var(--fs-sm);color:var(--accent-ink);font-weight:700;margin:0 0 8px}
+      .hero-card h1{font-size:40px;line-height:1.15;margin:0 0 12px}
+      .hero-card .lede{font-size:var(--fs-md);color:var(--mute);margin:0 0 22px}
+      #btn-start{min-width:220px;min-height:64px;font-size:var(--fs-lg);font-weight:800;border-color:var(--accent);color:var(--accent-ink)}
+      #guide{
+        position:fixed;left:calc(var(--tabs-w) + 24px);right:calc(var(--dock-w) + 24px);
+        bottom:24px;transform:none;z-index:70;display:flex;justify-content:center;pointer-events:none;
+      }
+      #guide .guide-card{pointer-events:auto}
+      .guide-card{padding:16px 20px;min-width:min(420px,86vw)}
+      #guide-step{font-size:var(--fs-md);font-weight:800;margin:0 0 6px}
+      #guide-body{font-size:var(--fs-sm);color:var(--mute);margin:0 0 12px}
+      #btn-guide-next{min-width:140px}
+
+      #quiz-root{
+        position:fixed;top:72px;bottom:16px;left:calc(var(--tabs-w) + 24px);right:calc(var(--dock-w) + 24px);
+        z-index:80;background:var(--pane-bg);border:1px solid var(--btn-border);border-radius:24px;
+        box-shadow:var(--shadow);padding:20px 22px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;
+        overflow:auto;
+      }
+      #quiz-root[hidden]{display:none !important}
+      #quiz-start h2,#quiz-end h2{margin:0;font-size:var(--fs-lg)}
+      #quiz-start p,#quiz-end p{margin:0;color:var(--mute);font-size:var(--fs-sm);line-height:1.35}
+      #quiz-begin{align-self:flex-start;font-weight:800;border-color:var(--accent);color:var(--accent-ink);min-height:56px}
+      #quiz-head{display:flex;align-items:center;gap:14px}
+      #quiz-timer{position:relative;width:72px;height:72px;flex-shrink:0}
+      #quiz-timer svg{width:72px;height:72px;display:block}
+      #quiz-ring-track{fill:none;stroke:#C9C2B6;stroke-width:3}
+      #quiz-ring{fill:none;stroke:#9A3D14;stroke-width:3;stroke-linecap:round;transform:rotate(-90deg);transform-origin:18px 18px}
+      #quiz-timer.amber #quiz-ring{stroke:#D98A1A;stroke-width:3.5}
+      #quiz-timer-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:var(--fs-sm);color:var(--accent-ink)}
+      #quiz-timer.amber #quiz-timer-num{color:#7A4206}
+      #quiz-meta{font-size:var(--fs-sm);font-weight:700;color:var(--accent-ink);line-height:1.3}
+      #quiz-prompt{font-size:var(--fs-md);font-weight:700;margin:0;line-height:1.3}
+      #quiz-choices{display:grid;grid-template-columns:1fr 1fr;column-gap:12px;row-gap:16px}
+      #quiz-choices button{min-height:68px;font-weight:700;text-align:left}
+      #quiz-choices button.ans-ok{outline:3px solid #2F5D3A;background:#E3EDE6;color:#2F5D3A}
+      #quiz-choices button.ans-bad{outline:3px solid #8B2E2E;background:#F3E4E2;color:#8B2E2E}
+      html.hc #quiz-choices button.ans-ok,html.hc #quiz-choices button.ans-bad{outline-width:4px;font-weight:800}
+      #quiz-lives{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:18px}
+      #quiz-lives button{min-height:78px;min-width:0;padding:8px 5px;font-size:12px;line-height:1.15;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:#EFE8DF}
+      #quiz-lives button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+      #quiz-lives button.used,#quiz-lives button:disabled{opacity:.48;text-decoration:line-through}
+      #quiz-lives button.used .life-check{display:inline}
+      .life-check{display:none;font-size:14px;margin-left:2px}
+      #quiz-help{font-size:var(--fs-sm);color:var(--mute);margin:0}
+      #quiz-friend{background:var(--speech-bg);border:1px solid var(--btn-border);border-radius:18px;padding:12px;display:flex;gap:12px;align-items:flex-start}
+      #quiz-friend[hidden]{display:none !important}
+      .friend-tile{width:56px;height:56px;border-radius:16px;border:2px solid var(--accent);background:var(--btn-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+      .friend-tile svg{width:28px;height:28px;stroke:var(--accent-ink);fill:none;stroke-width:2}
+      .friend-label{margin:0;font-size:var(--fs-sm);font-weight:700;color:var(--accent-ink)}
+      #quiz-friend-status,#quiz-friend-pick{margin:4px 0 0;font-size:var(--fs-sm);color:var(--mute)}
+      #quiz-feedback{display:flex;flex-wrap:wrap;align-items:center;gap:10px;border:2px solid var(--btn-border);border-radius:16px;padding:10px 14px;font-weight:800}
+      #quiz-feedback[hidden]{display:none !important}
+      #quiz-feedback.ok{color:#2F5D3A;border-color:#2F5D3A;background:#E3EDE6}
+      #quiz-feedback.bad{color:#8B2E2E;border-color:#8B2E2E;background:#F3E4E2}
+      #quiz-feedback .quiz-mark{font-size:28px;line-height:1}
+      #quiz-points-pop{color:var(--accent-ink);font-size:var(--fs-md)}
+      #quiz-level-chip{background:var(--btn-bg);border:2px solid var(--accent);color:var(--accent-ink);border-radius:999px;padding:4px 12px}
+      #quiz-end .quiz-score-big{font-size:56px;font-weight:800;line-height:1;margin:4px 0;color:var(--ink)}
+      #quiz-end-meta,#quiz-end-backline{font-size:var(--fs-sm);color:var(--mute);margin:0}
+      #quiz-back{align-self:flex-start;font-weight:800;border-color:var(--accent);color:var(--accent-ink);min-height:56px}
+      #quiz-facts{font-size:var(--fs-sm);color:var(--mute);line-height:1.35;margin-top:8px}
+      #quiz-facts p{margin:0 0 8px}
+
+      #opts-pop{
+        position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:75;
+        min-width:min(360px,86vw);text-align:left;
+      }
+      #opts-title{font-size:var(--fs-md);font-weight:800;margin:0 0 12px;text-align:center}
+      #opts-actions{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+      #opts-actions button{width:100%}
+      body.onboarding #tab-rail,
+      body.onboarding #pane-stage,
+      body.onboarding #chat-dock{visibility:hidden}
+
+      @media (max-width:900px){
+        :root{ --dock-w: min(300px,38vw); --tabs-w: 190px; }
+      }
+    </style>
+    <script type="module" crossorigin src="/pane-steward/assets/index-BKJoPbbq.js"></script>
+  </head>
+  <body class="onboarding">
+    <div id="scene-container"></div>
+
+    <div id="top-bar">
+      <button id="btn-enter" type="button">Enter XR</button>
+      <button id="btn-demo" type="button">Demo</button>
+      <div id="a11y-bar" role="group" aria-label="Accessibility">
+        <button id="btn-contrast" type="button" aria-pressed="false" title="High contrast">Contrast</button>
+        <button id="btn-text-down" type="button" aria-label="Smaller text" title="Smaller text">A−</button>
+        <button id="btn-text-up" type="button" aria-label="Larger text" title="Larger text">A+</button>
+        <button id="btn-mute" type="button" aria-pressed="false" title="Mute sounds">Sound</button>
+        <button id="btn-options" type="button" title="Options">Options</button>
+      </div>
+    </div>
+
+    <aside id="tab-rail" aria-label="Pane tabs">
+      <div id="tab-rail-head">
+        <span>Panes</span>
+        <button id="btn-tab-add" type="button" title="Add pane (max 3)" aria-label="Add pane">+</button>
+      </div>
+      <div id="tab-list"></div>
+      <div id="tab-hint">Max 3</div>
+    </aside>
+
+    <main id="pane-stage" aria-live="polite">
+      <p id="pane-stage-empty">No panes yet — Start, then + or chat.</p>
+      <h2 id="pane-stage-title" hidden></h2>
+      <p id="pane-stage-sub" hidden></p>
+      <pre id="pane-stage-body" hidden></pre>
+    </main>
+
+    <aside id="chat-dock" aria-label="Chat steward">
+      <div id="dock-main">
+      <div id="mode-chip">Demo Steward · offline — no API key</div>
+      <div id="status-line" role="status" aria-live="polite">Demo Steward · offline twin</div>
+      <div id="session">Did 0 · Kept 0</div>
+      <div id="speech">Chat steers up to 3 panes. Demo Steward runs offline.</div>
+      <div id="reason"></div>
+      <div id="connectors" role="group" aria-label="Connectors">
+        <button type="button" data-conn="web" aria-pressed="false" title="Public Web pane">Web</button>
+        <button type="button" data-conn="calendar" aria-pressed="false" title="Demo Calendar — no OAuth">Cal · demo</button>
+        <button type="button" data-conn="mail" aria-pressed="false" title="Demo Mail — no OAuth">Mail · demo</button>
+        <button type="button" data-conn="notes" aria-pressed="false" title="Demo Notes">Notes · demo</button>
+      </div>
+      <button id="btn-break" type="button">Quiz Game Mode</button>
+      <button id="btn-more" type="button" aria-expanded="false">More</button>
+      <div id="more-panel" hidden>
+        <div id="connectors-note">Web: public pages · Cal/Mail/Notes: demo, no OAuth</div>
+        <div id="chips">
+          <button type="button" data-intent="prep">Prep</button>
+          <button type="button" data-intent="park">Park</button>
+          <button type="button" data-intent="next">Next</button>
+          <button type="button" data-intent="web">Web</button>
+        </div>
+      </div>
+      </div>
+      <div id="keep-row">
+        <button id="btn-keep" type="button" disabled>Keep all</button>
+        <button id="btn-undo" type="button" disabled>Undo last</button>
+      </div>
+      <div id="chat-bar">
+        <input id="chat-input" type="text" placeholder="Ask Steward…" autocomplete="off" aria-label="Chat ask" />
+        <button id="btn-send" type="button">Send</button>
+      </div>
+    </aside>
+
+    <div id="cold-start">
+      <div class="hero-card">
+        <p class="eyebrow">Demo Steward · offline twin</p>
+        <h1>Pane Steward</h1>
+        <p class="lede">Chat steers up to 3 panes. Works now — no API key.</p>
+        <button id="btn-start" type="button">Start</button>
+      </div>
+    </div>
+    <div id="guide" hidden>
+      <div class="guide-card">
+        <p id="guide-step">1 / 3 · Open a tab</p>
+        <p id="guide-body">Tap + or Prep to open a pane.</p>
+        <button id="btn-guide-next" type="button">Next</button>
+      </div>
+    </div>
+
+    <div id="quiz-root" hidden>
+      <div id="quiz-start">
+        <p class="eyebrow">60-second game</p>
+        <h2>Quiz Game Mode</h2>
+        <p>Quiz Game Mode: a 60-second productivity game. Pane Steward pauses your tabs and puts them back exactly where you left them.</p>
+        <button id="quiz-begin" type="button">Start Quiz Game Mode</button>
+      </div>
+      <div id="quiz-play" hidden>
+        <div id="quiz-head">
+          <div id="quiz-timer" aria-live="polite" aria-label="Seconds left">
+            <svg viewBox="0 0 36 36" aria-hidden="true">
+              <circle id="quiz-ring-track" class="quiz-ring-track" cx="18" cy="18" r="15.915"/>
+              <circle id="quiz-ring" cx="18" cy="18" r="15.915" stroke-dasharray="100 100" stroke-dashoffset="0"/>
+            </svg>
+            <span id="quiz-timer-num">60</span>
+          </div>
+          <div id="quiz-meta"></div>
+        </div>
+        <p id="quiz-prompt"></p>
+        <div id="quiz-choices"></div>
+        <div id="quiz-lives" role="group" aria-label="Lifelines">
+          <button type="button" data-life="hint" aria-label="Hint" title="Hint"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3 11c.4.4.8 1.2.8 2h4.4c0-.8.4-1.6.8-2A6 6 0 0 0 12 3z"/></svg><span class="life-copy">Hint<span class="life-check"> ✓</span></span></button>
+          <button type="button" data-life="expert" aria-label="Expert" title="Expert"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l9-5 9 5-9 5-9-5z"/><path d="M7 11.5v4c2 1.6 8 1.6 10 0v-4"/></svg><span class="life-copy">Expert<span class="life-check"> ✓</span></span></button>
+          <button type="button" data-life="fifty" aria-label="50:50" title="50:50"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4v16"/></svg><span class="life-copy">50:50<span class="life-check"> ✓</span></span></button>
+          <button type="button" data-life="star" aria-label="Star" title="Star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.4 5.6L20 10l-4 3.8.9 6.2L12 17.2 7.1 20l.9-6.2L4 10l5.6-1.4L12 3z"/></svg><span class="life-copy">Star<span class="life-check"> ✓</span></span></button>
+          <button type="button" data-life="friend" aria-label="Video Call a Friend" title="Video Call a Friend"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="12" height="10" rx="2"/><path d="M15 11l6-3v8l-6-3z"/></svg><span class="life-copy">Video Call<br>a Friend<span class="life-check"> ✓</span></span></button>
+        </div>
+        <div id="quiz-feedback" hidden>
+          <span class="quiz-mark" aria-hidden="true">✓</span>
+          <span class="quiz-word">Correct</span>
+          <span id="quiz-points-pop"></span>
+          <span id="quiz-level-chip" hidden></span>
+        </div>
+        <p id="quiz-help" hidden></p>
+        <div id="quiz-friend" hidden>
+          <div class="friend-tile" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="12" height="10" rx="2"/><path d="M15 11l6-3v8l-6-3z"/></svg></div>
+          <div>
+            <p class="friend-label">Practice friend · offline pick</p>
+            <p id="quiz-friend-status">Thinking…</p>
+            <p id="quiz-friend-pick"></p>
+          </div>
+        </div>
+      </div>
+      <div id="quiz-end" hidden>
+        <p class="eyebrow">Game over · tabs restored</p>
+        <p class="quiz-score-big" id="quiz-end-points">0</p>
+        <p id="quiz-end-score">points</p>
+        <p id="quiz-end-meta"></p>
+        <div id="quiz-facts"></div>
+        <p id="quiz-end-backline"></p>
+        <button id="quiz-back" type="button">Back to work</button>
+      </div>
+    </div>
+    <div id="opts-pop" hidden role="dialog" aria-label="Options">
+      <p id="opts-title">Options</p>
+      <div id="opts-actions"></div>
+      <button type="button" id="opts-dismiss">Close</button>
+    </div>
+
+  </body>
+</html>
