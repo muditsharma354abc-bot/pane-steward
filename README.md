@@ -7,7 +7,7 @@
 **Chatbot-only steward** (no character meshes / avatars / billboards). **Chat docks on the right**; **vertical icon tabs on the left** (≤3, slide in/out) with a one-line title and subtitle (for example **Web** / example.com). Demo Steward or optional live Chat AI opens / focuses / closes tabs. One **Did N · Kept N** counter and a **status pill** in the dock header narrate what is happening. The connector note and intent row sit behind a **More** toggle. Chat placeholder: **Ask Steward…**. **Connectors tray:** Web (public URL fetch into a pane only); Calendar / Mail / Notes (demo stubs — **no OAuth**). **Keep all** / **Undo last**. **Quiz Game Mode** is a 60-second productivity game that pauses your tabs and restores them.
 
 **Live:** https://muditsharma354abc-bot.github.io/pane-steward/?demo=1  
-**Demo video (72 s):** [Pane Steward on YouTube](https://youtu.be/ZAokaZ5PIfo)  
+**Demo video (72 s):** [Pane Steward on YouTube](https://youtu.be/ZAokaZ5Plfo)  
 **Live build (frozen):** commit `a0012a1` · bundle `index-BKJoPbbq.js`
 
 ![Start card: Demo Steward offline, no API key](screens/light-cold-start.png)
