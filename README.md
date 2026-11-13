@@ -8,6 +8,7 @@
 
 **Live:** https://muditsharma354abc-bot.github.io/pane-steward/?demo=1  
 **Demo video (72 s):** [Pane Steward on YouTube](https://youtu.be/ZAokaZ5Plfo)  
+**Devpost:** [Pane Steward on Devpost](https://devpost.com/software/pane-steward)  
 **Live build (frozen):** commit `a0012a1` · bundle `index-BKJoPbbq.js`
 
 ![Start card: Demo Steward offline, no API key](screens/light-cold-start.png)
