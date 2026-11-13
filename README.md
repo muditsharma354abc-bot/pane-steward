@@ -62,7 +62,7 @@ In immersive IWER the question uses larger type and wraps on a larger card (long
 
 - **Pinch** is the primary action; every action also has a **button twin**.
 - **Gaze highlight** on tabs and connector chips, and a **600 ms long-hold** Options popover, are shipped and verified on the 2D page, each with a button twin.
-- In immersive IWER captures, a gaze glow is visible on **Keep all**, XR pinch-hold on **+Tab** opens Options, and pinch Keep works in XR. The XR Undo effect is not yet confirmed.
+- In immersive IWER captures, a gaze glow is visible on **Keep all**, XR pinch-hold on **+Tab** opens Options, and pinch Keep works in XR. Undo last works in XR (verified in the IWER emulator).
 - This has not been tested on a Quest headset.
 
 ## Accessibility
@@ -151,7 +151,7 @@ All stills are captured from the live build `a0012a1`.
 
 ## Current gaps
 
-- Gaze highlight and the 600 ms long-hold Options popover are verified on the 2D page. In immersive IWER, gaze glow on Keep all, pinch-hold Options on +Tab, and pinch Keep are captured; the XR Undo effect is not yet confirmed. Not tested on a Quest headset.
+- Gaze highlight and the 600 ms long-hold Options popover are verified on the 2D page. In immersive IWER, gaze glow on Keep all, pinch-hold Options on +Tab, and pinch Keep are captured. Undo last works in XR (verified in the IWER emulator). Not tested on a Quest headset.
 - Calendar / Mail / Notes remain demo Connect stubs (no OAuth).
 - Web Connect is public URL / fetch into a pane only — no account takeover or RPA.
 
