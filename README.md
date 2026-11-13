@@ -11,6 +11,14 @@
 
 ![Start card: Demo Steward offline, no API key](screens/light-cold-start.png)
 
+## Try it in 60 seconds
+
+1. Open the [live demo](https://muditsharma354abc-bot.github.io/pane-steward/?demo=1). No sign-in or API key is needed.
+2. Press **Start**, then follow the 3-step guide: open a tab, **Keep all**, **Undo last**.
+3. In the **Connectors** tray on the right dock, connect **Web** to fetch a public page into a pane.
+4. Press **Quiz Game Mode**, then **Start Quiz Game Mode**. Your tabs pause, and they're restored when the game ends.
+5. Press **Enter XR** at the top to see the same layout in the immersive IWER emulator.
+
 ## Layout
 
 | Region | Role |
@@ -76,31 +84,69 @@ npm run dev:runtime
 
 ## Screenshots
 
-| File | Shows |
-|------|--------|
-| `light-cold-start.png` | Start card · Demo Steward offline, no API key |
-| `light-coldstart-guide.png` | 3-step guide after Start (open a tab, Keep all, Undo last) |
-| `light-panes.png` | Title + subtitle tabs + Web pane |
-| `light-connectors.png` | Connectors tray on the right chat dock |
-| `light-keep.png` | After Keep all |
-| `light-undo.png` | Undo last |
-| `light-gaze.png` | Gaze highlight on tabs and connector chips (2D) |
-| `light-longhold.png` | 600 ms long-hold Options popover (2D) |
-| `light-web.png` | Web Connect + Web pane |
-| `light-xr-cold-start.png` | Immersive IWER view |
-| `light-xr-panes.png` | Immersive IWER view |
-| `light-xr-gaze.png` | XR gaze glow on Keep all |
-| `light-xr-longhold.png` | XR pinch-hold on +Tab opens Options |
-| `quiz-start.png` | Quiz Game Mode start · 60-second productivity game |
-| `quiz-question.png` | Question, drain ring, and 4 answer targets |
-| `quiz-lifelines.png` | Lifeline icon row (Hint, Expert, 50:50, Star, Video Call a Friend) |
-| `quiz-friend.png` | Practice friend · offline pick |
-| `quiz-feedback.png` | Correct feedback |
-| `quiz-wrong.png` | Wrong feedback (✗ Wrong) |
-| `quiz-amber.png` | Timer ring amber in the last 10 seconds |
-| `quiz-end.png` | End card (test run), tabs restored |
-| `quiz-xr-question.png` | Quiz Game Mode question with four answers and lifelines, immersive IWER view |
-| `quiz-xr-long.png` | Long question wraps to 3 lines, immersive IWER view |
+All stills are captured from the live build `a0012a1`.
+
+### 2D · light theme
+
+<table>
+<tr>
+<td width="50%" valign="top"><img src="screens/light-cold-start.png" alt="Start card · Demo Steward offline, no API key"><br><sub>Start card · Demo Steward offline, no API key</sub></td>
+<td width="50%" valign="top"><img src="screens/light-coldstart-guide.png" alt="3-step guide after Start (open a tab, Keep all, Undo last)"><br><sub>3-step guide after Start (open a tab, Keep all, Undo last)</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img src="screens/light-panes.png" alt="Title + subtitle tabs + Web pane"><br><sub>Title + subtitle tabs + Web pane</sub></td>
+<td width="50%" valign="top"><img src="screens/light-connectors.png" alt="Connectors tray on the right chat dock"><br><sub>Connectors tray on the right chat dock</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img src="screens/light-keep.png" alt="After Keep all"><br><sub>After Keep all</sub></td>
+<td width="50%" valign="top"><img src="screens/light-undo.png" alt="Undo last"><br><sub>Undo last</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img src="screens/light-gaze.png" alt="Gaze highlight on tabs and connector chips (2D)"><br><sub>Gaze highlight on tabs and connector chips (2D)</sub></td>
+<td width="50%" valign="top"><img src="screens/light-longhold.png" alt="600 ms long-hold Options popover (2D)"><br><sub>600 ms long-hold Options popover (2D)</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img src="screens/light-web.png" alt="Web Connect + Web pane"><br><sub>Web Connect + Web pane</sub></td>
+</tr>
+</table>
+
+### Quiz Game Mode
+
+<table>
+<tr>
+<td width="50%" valign="top"><img src="screens/quiz-start.png" alt="Quiz Game Mode start · 60-second productivity game"><br><sub>Quiz Game Mode start · 60-second productivity game</sub></td>
+<td width="50%" valign="top"><img src="screens/quiz-question.png" alt="Question, drain ring, and 4 answer targets"><br><sub>Question, drain ring, and 4 answer targets</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img src="screens/quiz-lifelines.png" alt="Lifeline icon row (Hint, Expert, 50:50, Star, Video Call a Friend)"><br><sub>Lifeline icon row (Hint, Expert, 50:50, Star, Video Call a Friend)</sub></td>
+<td width="50%" valign="top"><img src="screens/quiz-friend.png" alt="Practice friend · offline pick"><br><sub>Practice friend · offline pick</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img src="screens/quiz-feedback.png" alt="Correct feedback"><br><sub>Correct feedback</sub></td>
+<td width="50%" valign="top"><img src="screens/quiz-wrong.png" alt="Wrong feedback (✗ Wrong)"><br><sub>Wrong feedback (✗ Wrong)</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img src="screens/quiz-amber.png" alt="Timer ring amber in the last 10 seconds"><br><sub>Timer ring amber in the last 10 seconds</sub></td>
+<td width="50%" valign="top"><img src="screens/quiz-end.png" alt="End card (test run), tabs restored"><br><sub>End card (test run), tabs restored</sub></td>
+</tr>
+</table>
+
+### Immersive IWER emulator (not a Quest capture)
+
+<table>
+<tr>
+<td width="50%" valign="top"><img src="screens/light-xr-cold-start.png" alt="Immersive IWER view"><br><sub>Immersive IWER view</sub></td>
+<td width="50%" valign="top"><img src="screens/light-xr-panes.png" alt="Immersive IWER view"><br><sub>Immersive IWER view</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img src="screens/light-xr-gaze.png" alt="XR gaze glow on Keep all"><br><sub>XR gaze glow on Keep all</sub></td>
+<td width="50%" valign="top"><img src="screens/light-xr-longhold.png" alt="XR pinch-hold on +Tab opens Options"><br><sub>XR pinch-hold on +Tab opens Options</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img src="screens/quiz-xr-question.png" alt="Quiz Game Mode question with four answers and lifelines, immersive IWER view"><br><sub>Quiz Game Mode question with four answers and lifelines, immersive IWER view</sub></td>
+<td width="50%" valign="top"><img src="screens/quiz-xr-long.png" alt="Long question wraps to 3 lines, immersive IWER view"><br><sub>Long question wraps to 3 lines, immersive IWER view</sub></td>
+</tr>
+</table>
 
 ## Current gaps
 
