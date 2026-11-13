@@ -283,7 +283,7 @@ export class StewardSystem extends createSystem({
   }
 
   private buildWorldBtns(): void {
-    this.xrStatus = this.makeWorldBtn('xr-status', 'Ready', [0.92, 1.62, -0.95], () => {}, { w: 0.38, h: 0.16 });
+    this.xrStatus = this.makeWorldBtn('xr-status', 'Ready', [0.92, 1.62, -0.95], () => {}, { w: 0.48, h: 0.10 });
     this.keepBtn = this.makeWorldBtn('keep', 'Keep all', [0.92, 1.00, -0.95], () => this.keep(), { twin: '#btn-keep', w: 0.30, h: 0.09 });
     this.undoBtn = this.makeWorldBtn('undo', 'Undo last', [0.92, 0.88, -0.95], () => this.undo(), { twin: '#btn-undo', w: 0.30, h: 0.09 });
     this.startBtn = this.makeWorldBtn('start', 'Start', [0, 1.24, -0.78], () => this.beginOnboarding(), {
@@ -369,7 +369,15 @@ export class StewardSystem extends createSystem({
     b.label.draw((g, W, H) => {
       panel(g, W, H, b.gazed && !b.dimmed ? C.glassHi : C.pane, accent);
       if (b.kind === 'xr-status') {
-        para(g, b.title, 28, 28, 26, W - 56, ink, 700, 2);
+        // One line, as large as fits (40px down to 24px), then ellipsis.
+        const maxW = W - 48;
+        let size = 40;
+        g.font = `700 ${size}px ${FONT}`;
+        while (size > 24 && g.measureText(b.title).width > maxW) {
+          size -= 2;
+          g.font = `700 ${size}px ${FONT}`;
+        }
+        text(g, b.title, W / 2, H / 2, size, ink, 700, maxW, 'center');
         return;
       }
       if (b.kind === 'quiz-panel') {
